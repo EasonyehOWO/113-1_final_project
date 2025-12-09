@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>裸眼 3D 網格空間 (v5.8 - 軌跡準心)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            padding: 10px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 250px;
+        }
+        #info label {
+            display: block;
+            margin: 5px 0;
+        }
+        #info input[type="range"] {
+            width: 100%;
+        }
+        /* v5.4 新增準心 UI */
+        #info .checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        #info .checkbox-label input {
+            margin-right: 5px;
+        }
+
+        /* 隱藏攝影機畫面，我們只需要它的數據 */
+        #webcam-feed {
+            display: none;
+        }
+        #render-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <p id="status-text">正在載入 3D 臉部地標模型...</p>
+        <label for="convergenceSlider">視線收斂 (Convergence)</label>
+        <input type="range" id="convergenceSlider" min="0.0" max="1.0" step="0.05" value="0.0">
+        <!-- v5.4 新增準心 UI --><label class="checkbox-label">
+            <input type="checkbox" id="crosshairToggle">
+            <span>顯示準心</span>
+        </label>
+    </div>
+    
+    <canvas id="render-canvas"></canvas>
+    <video id="webcam-feed" autoplay playsinline></video>
+
+    <!-- 
+      核心依賴 (Dependencies) 
+      1. Three.js: 用於 3D 渲染
+      2. MediaPipe Tasks Vision: 用於 FaceLandmarker (v5.1)
+    --><script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+    <script type="module">
+        // --- 1. 引入 MediaPipe FaceLandmarker (v5.1 - 更新版本) ---
+        import {
+            FaceLandmarker,
+            FilesetResolver
+        } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.10/vision_bundle.mjs"; // 已更新版本
+
+        // --- 2. 取得 HTML 元素 ---
+        const videoElement = document.getElementById('webcam-feed');
+        const canvasElement = document.getElementById('render-canvas');
+        const infoElement = document.getElementById('info');
+        const statusText = document.getElementById('status-text');
+        const convergenceSlider = document.getElementById('convergenceSlider');
+        const crosshairToggle = document.getElementById('crosshairToggle'); // v5.4
+        const renderer = new THREE.WebGLRenderer({ canvas: canvasElement, antias: true });
+
+        // --- 3. 設置 Three.js 3D 場景 (v5.8 更新) ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.Fog(0x000000, 5, 20);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        // 網格座標
+        const FLOOR_Y = -4;
+        const WALL_Z = -8;
+
+        const floorGrid = new THREE.GridHelper(20, 20, 0x00ffff, 0x444444);
+        floorGrid.position.y = FLOOR_Y;
+        scene.add(floorGrid);
+
+        const backWallGrid = new THREE.GridHelper(20, 20, 0xff00ff, 0x444444);
+        backWallGrid.position.z = WALL_Z;
+        backWallGrid.position.y = 6; // 網格中心
+        backWallGrid.rotation.x = Math.PI / 2;
+        scene.add(backWallGrid);
+
+        const sphereGeo = new THREE.SphereGeometry(0.5, 32, 16);
+        const normalMaterial = new THREE.MeshNormalMaterial();
+        const sphereNear = new THREE.Mesh(sphereGeo, normalMaterial);
+        sphereNear.position.set(0, -1, 2);
+        scene.add(sphereNear);
+        const sphereMid = new THREE.Mesh(sphereGeo, normalMaterial);
+        sphereMid.position.set(-2, 0, -2);
+        scene.add(sphereMid);
+        const sphereFar = new THREE.Mesh(sphereGeo, normalMaterial);
+        sphereFar.position.set(2, 1, -6);
+        scene.add(sphereFar);
+
+        // --- v5.8 修正：準心和光線偵測物件 ---
+        const raycaster = new THREE.Raycaster();
+        
+        // (v5.8 刪除) 移除 ArrowHelper
+        // const rayArrow = new THREE.ArrowHelper(...);
+        // scene.add(rayArrow);
+
+        // 準心擊中點 (紅球)
+        const hitMarkerGeo = new THREE.SphereGeometry(0.05, 16, 8);
+        const hitMarkerMat = new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000 });
+        const hitMarker = new THREE.Mesh(hitMarkerGeo, hitMarkerMat);
+        hitMarker.visible = false;
+        scene.add(hitMarker); 
+
+        // (v5.8 新增) 軌跡投影線
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+        
+        // 地板投影線 (X-Z 平面)
+        const floorLineGeo = new THREE.BufferGeometry().setFromPoints([ new THREE.Vector3(), new THREE.Vector3() ]);
+        const floorProjectionLine = new THREE.Line(floorLineGeo, lineMaterial);
+        floorProjectionLine.visible = false;
+        scene.add(floorProjectionLine);
+
+        // 牆壁投影線 (X-Y 平面)
+        const wallLineGeo = new THREE.BufferGeometry().setFromPoints([ new THREE.Vector3(), new THREE.Vector3() ]);
+        const wallProjectionLine = new THREE.Line(wallLineGeo, lineMaterial);
+        wallProjectionLine.visible = false;
+        scene.add(wallProjectionLine);
+
+
+        // 用於光線偵測的隱形平面
+        const floorPlaneGeo = new THREE.PlaneGeometry(20, 20);
+        const floorPlaneMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+        const floorPlane = new THREE.Mesh(floorPlaneGeo, floorPlaneMat);
+        floorPlane.position.y = FLOOR_Y;
+        floorPlane.rotation.x = -Math.PI / 2; 
+        scene.add(floorPlane);
+
+        const backWallPlaneGeo = new THREE.PlaneGeometry(20, 20);
+        const backWallPlane = new THREE.Mesh(backWallPlaneGeo, floorPlaneMat); 
+        backWallPlane.position.z = WALL_Z;
+        backWallPlane.position.y = backWallGrid.position.y; // 與可見網格對齊
+        scene.add(backWallPlane);
+        
+        const raycastTargets = [floorPlane, backWallPlane]; 
+
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // --- 4. 核心邏輯參數 (v5.3) ---
+        const SENSITIVITY_X = 12.0; 
+        const SENSITIVITY_Y = 12.0; 
+        const SENSITIVITY_Z = 20.0; 
+        const SENSITIVITY_ROLL = 20.0; 
+        const BASE_CAMERA_Z = 5;
+        const NEUTRAL_LANDMARK_DIST = 0.25; 
+        let targetFaceX = 0;
+        let targetFaceY = 0;
+        let targetFaceZ = BASE_CAMERA_Z;
+        let targetFaceRoll = 0; 
+
+        // --- 5. 初始化 MediaPipe FaceLandmarker (v5.3) ---
+        
+        let faceLandmarker;
+        let lastVideoTime = -1;
+
+        async function createFaceLandmarker() {
+            const filesetResolver = await FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.10/wasm" 
+            );
+            faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                    delegate: "GPU"
+                },
+                runningMode: "VIDEO",
+                outputFaceLandmarks: true 
+            });
+            statusText.innerText = "模型已載入。正在啟動攝影機...";
+            startWebcam();
+        }
+
+        function startWebcam() {
+            navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480 },
+                audio: false
+            }).then(stream => {
+                videoElement.srcObject = stream;
+                videoElement.addEventListener("loadeddata", predictWebcam);
+            }).catch(err => {
+                console.error("ERROR: 攝影機無法啟動", err);
+                statusText.innerText = "錯誤：攝影機無法啟動。";
+            });
+        }
+
+        // --- 6. 核心迴圈 (v5.8) ---
+        
+        async function predictWebcam() {
+            // --- 6A. 每一幀都偵測臉部 ---
+            const videoTime = videoElement.currentTime;
+            if (videoTime !== lastVideoTime && videoElement.readyState >= 2) { 
+                lastVideoTime = videoTime;
+                
+                const results = faceLandmarker.detectForVideo(videoElement, performance.now());
+
+                if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                    statusText.innerText = "偵測到臉部！";
+                    
+                    const landmarks = results.faceLandmarks[0];
+
+                    // 提取 X, Y
+                    const nose = landmarks[1]; 
+                    targetFaceX = (nose.x - 0.5) * 2 * -1;
+                    targetFaceY = (nose.y - 0.5) * 2 * -1;
+                    
+                    // 提取 Z
+                    const leftTemple = landmarks[130];
+                    const rightTemple = landmarks[359];
+                    const landmarkDist = Math.abs(leftTemple.x - rightTemple.x);
+                    const zOffset = (NEUTRAL_LANDMARK_DIST - landmarkDist) * SENSITIVITY_Z;
+                    targetFaceZ = BASE_CAMERA_Z + zOffset;
+
+                    // E-Extract Roll
+                    const deltaY = leftTemple.y - rightTemple.y; 
+                    const deltaX = leftTemple.x - rightTemple.x; 
+                    targetFaceRoll = Math.atan2(deltaY, deltaX);
+                    
+                } else {
+                    statusText.innerText = "未偵測到臉部...";
+                    // 緩慢歸位
+                    const lerpFactor = 0.05;
+                    targetFaceX = targetFaceX * (1 - lerpFactor);
+                    targetFaceY = targetFaceY * (1 - lerpFactor);
+                    targetFaceZ = targetFaceZ * (1 - lerpFactor) + BASE_CAMERA_Z * lerpFactor;
+                    targetFaceRoll = targetFaceRoll * (1 - lerpFactor);
+                }
+            }
+
+            // --- 6B. 每一幀都渲染 3D 場景 ---
+            
+            const lerpFactor = 0.1; 
+            
+            const posX = targetFaceX * SENSITIVITY_X;
+            const posY = targetFaceY * SENSITIVITY_Y;
+            const posZ = targetFaceZ;
+            const rotZ = targetFaceRoll * SENSITIVITY_ROLL;
+            
+
+            // 平滑地移動/旋轉相機
+            camera.position.x += (posX - camera.position.x) * lerpFactor;
+            camera.position.y += (posY - camera.position.y) * lerpFactor;
+            camera.position.z += (posZ - camera.position.z) * lerpFactor;
+            camera.rotation.z += (rotZ - camera.rotation.z) * lerpFactor; 
+            
+            // 讀取滑桿值，決定 "看" 的目標點 (收斂)
+            const convergence = parseFloat(convergenceSlider.value); 
+            const lookAtX = camera.position.x * (1.0 - convergence);
+            const lookAtY = camera.position.y * (1.0 - convergence);
+            
+            camera.lookAt(lookAtX, lookAtY, 0);
+
+            // 更新不對稱投影
+            const frustumShift = (1.0 - convergence);
+            const near = camera.near;
+            const far = camera.far;
+            const top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * camera.fov);
+            const bottom = -top;
+            const right = top * camera.aspect;
+            const left = -right;
+            const z = Math.max(0.1, camera.position.z); 
+            const shiftX = (camera.position.x / z) * near * frustumShift;
+            const shiftY = (camera.position.y / z) * near * frustumShift;
+            const newLeft = left - shiftX;
+            const newRight = right - shiftX;
+            const newTop = top - shiftY;
+            const newBottom = bottom - shiftY;
+            camera.projectionMatrix.makePerspective(newLeft, newRight, newTop, newBottom, near, far);
+
+            // --- v5.8 修正：更新軌跡準心 ---
+            const showCrosshair = crosshairToggle.checked;
+            
+            if (showCrosshair) {
+                // 將 raycaster 設定為從相機發出
+                raycaster.setFromCamera( new THREE.Vector2(0,0), camera );
+
+                const intersects = raycaster.intersectObjects(raycastTargets);
+
+                if (intersects.length > 0) {
+                    // 取得最近的碰撞點
+                    const closestHit = intersects[0];
+                    hitMarker.position.copy(closestHit.point);
+                    hitMarker.visible = true;
+
+                    // (v5.8 新增) 更新軌跡線
+                    const camPos = camera.position;
+                    const hitPos = hitMarker.position;
+                    
+                    // 1. 更新地板投影線 (X-Z 平面，Y 是固定的)
+                    const floorLinePos = floorProjectionLine.geometry.attributes.position;
+                    floorLinePos.setXYZ(0, camPos.x, FLOOR_Y, camPos.z); // 相機的影子
+                    floorLinePos.setXYZ(1, hitPos.x, FLOOR_Y, hitPos.z); // 紅球的影子
+                    floorLinePos.needsUpdate = true;
+
+                    // 2. 更新牆壁投影線 (X-Y 平面，Z 是固定的)
+                    const wallLinePos = wallProjectionLine.geometry.attributes.position;
+                    wallLinePos.setXYZ(0, camPos.x, camPos.y, WALL_Z); // 相機的影子
+                    wallLinePos.setXYZ(1, hitPos.x, hitPos.y, WALL_Z); // 紅球的影子
+                    wallLinePos.needsUpdate = true;
+                    
+                    floorProjectionLine.visible = true;
+                    wallProjectionLine.visible = true;
+
+                } else {
+                    hitMarker.visible = false;
+                    floorProjectionLine.visible = false;
+                    wallProjectionLine.visible = false;
+                }
+
+            } else {
+                // 如果未勾選，隱藏準心
+                hitMarker.visible = false;
+                floorProjectionLine.visible = false;
+                wallProjectionLine.visible = false;
+                // (v5.8 刪除) rayArrow.visible = false;
+            }
+
+            // D. 讓物體緩慢旋轉
+            sphereNear.rotation.y += 0.01;
+            sphereMid.rotation.y -= 0.005;
+            sphereFar.rotation.y += 0.003;
+
+            // 渲染 3D 場景
+            renderer.render(scene, camera);
+
+            // 繼續迴圈
+            requestAnimationFrame(predictWebcam);
+        }
+
+        // --- 7. 啟動！ ---
+        createFaceLandmarker();
+
+        // (v5.6 修正) 讓點擊 info 區域時不會觸發全螢幕
+        infoElement.addEventListener('click', (event) => {
+            event.stopPropagation();
+        });
+
+        document.body.addEventListener("click", () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.body.requestFullscreen();
+            }
+        });
+    </script>
+</body>
+</html>
