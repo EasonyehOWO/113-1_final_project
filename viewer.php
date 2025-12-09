@@ -10,7 +10,8 @@
     <script type="importmap">
     {
         "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js"
+            "three": "./js/libs/three/three.module.js",
+            "@mediapipe/tasks-vision": "./js/libs/mediapipe/vision_bundle.mjs"
         }
     }
     </script>

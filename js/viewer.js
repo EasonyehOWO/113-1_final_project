@@ -1,5 +1,5 @@
 /* 遷移自 GEMINI Prototype */
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js';
+import * as THREE from 'three';
 import { FaceTracker } from './tracking/face_tracker.js';
 import { initScene, createObjects } from './graphics/scene_init.js';
 

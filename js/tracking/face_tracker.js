@@ -1,8 +1,7 @@
-/* 遷移自 GEMINI Prototype */
 import {
     FaceLandmarker,
     FilesetResolver
-} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.10/vision_bundle.mjs";
+} from "@mediapipe/tasks-vision";
 
 export class FaceTracker {
     constructor() {
@@ -13,11 +12,11 @@ export class FaceTracker {
 
     async init(videoElement) {
         const filesetResolver = await FilesetResolver.forVisionTasks(
-            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.10/wasm" 
+            "./js/libs/mediapipe/wasm" 
         );
         this.faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
             baseOptions: {
-                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                modelAssetPath: "./js/assets/models/face_landmarker.task",
                 delegate: "GPU"
             },
             runningMode: "VIDEO",

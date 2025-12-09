@@ -1,5 +1,5 @@
 /* 遷移自 GEMINI Prototype */
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js';
+import * as THREE from 'three';
 
 /**
  * 初始化 Three.js 場景
