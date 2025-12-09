@@ -57,7 +57,7 @@ if ($action === 'upload') {
         exit();
     }
 
-    $stmt = $conn->prepare("INSERT INTO models (user_id, title, description, filepath) VALUES (?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO models (user_id, title, description, filepath, uploaded_at) VALUES (?, ?, ?, ?, NOW())");
     $stmt->bind_param("isss", $user_id, $title, $description, $dbPath);
 
     if ($stmt->execute()) {
