@@ -69,7 +69,12 @@ $modelPath = isset($_GET['model']) ? $_GET['model'] : 'assets/models/default_cub
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- 2. GLTFLoader -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-
+    <!-- 3. Face Tracking Library (例如 clmtrackr 或其他) -->
+     <!-- 引入 Face-api -->
+    <script src="js/libs/face-api.min.js"></script>
+    <!-- 接著才是我們原本的 -->
+    <script src="js/tracking/face_tracker.js"></script>
+    
     <!-- 引入我們自定義的模組 -->
     <script src="js/tracking/face_tracker.js"></script>
     <script src="js/graphics/scene_init.js"></script>
