@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Viewer with Custom Shader</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #333; }
+        #info {
+            position: absolute;
+            top: 10px; left: 10px;
+            color: white;
+            font-family: monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            pointer-events: none;
+        }
+        canvas { display: block; }
+    </style>
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 引入 GLTF Loader -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+    <div id="info">
+        <h3>圖學模組原型 (Prototype)</h3>
+        <p>滑鼠移動模擬頭部位置 (Head Tracking Simulation)</p>
+        <p>Shader: Custom Blinn-Phong</p>
+        <p>Head X: <span id="debug-x">0</span>, Y: <span id="debug-y">0</span></p>
+    </div>
+
+    <!-- 
+        VERTEX SHADER (頂點著色器) 
+        負責處理頂點位置和法線，並傳遞給 Fragment Shader
+    -->
+    <script id="vertexShader" type="x-shader/x-vertex">
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+
+        void main() {
+            // 將法線轉換到視圖空間 (View Space)
+            vNormal = normalize(normalMatrix * normal);
+            
+            // 將頂點位置轉換到視圖空間
+            vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+            vPosition = viewPosition.xyz;
+
+            // 計算最終在螢幕上的位置
+            gl_Position = projectionMatrix * viewPosition;
+        }
+    </script>
+
+    <!-- 
+        FRAGMENT SHADER (片段著色器)
+        核心：在這裡實作 Blinn-Phong 光照模型
+    -->
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+
+        // 定義光源位置 (在 View Space 中，或由 JS 傳入)
+        uniform vec3 lightPosition;
+        uniform vec3 ambientColor;
+        uniform vec3 diffuseColor;
+        uniform vec3 specularColor;
+        uniform float shininess;
+
+        void main() {
+            // 1. 正規化法線與視線向量
+            vec3 N = normalize(vNormal);
+            vec3 L = normalize(lightPosition - vPosition); // 光源向量
+            vec3 V = normalize(-vPosition); // 視線向量 (在 View Space 原點是相機)
+
+            // 2. Ambient (環境光)
+            vec3 ambient = ambientColor;
+
+            // 3. Diffuse (漫反射) - Lambertian
+            float diff = max(dot(N, L), 0.0);
+            vec3 diffuse = diff * diffuseColor;
+
+            // 4. Specular (鏡面反射) - Blinn-Phong
+            vec3 H = normalize(L + V); // Half vector
+            float spec = pow(max(dot(N, H), 0.0), shininess);
+            vec3 specular = spec * specularColor;
+
+            // 5. 組合最終顏色
+            vec3 finalColor = ambient + diffuse + specular;
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    </script>
+
+    <script>
+        // --- 初始化場景變數 ---
+        let scene, camera, renderer;
+        let modelMesh;
+        let mouseX = 0, mouseY = 0;
+        const windowHalfX = window.innerWidth / 2;
+        const windowHalfY = window.innerHeight / 2;
+
+        function init() {
+            // 1. 建立場景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+
+            // 2. 建立相機 (PerspectiveCamera)
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 5; // 預設相機距離
+
+            // 3. 建立渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 4. 定義 Shader Material (符合 Proposal 要求)
+            const customMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    lightPosition: { value: new THREE.Vector3(10, 10, 10) },
+                    ambientColor: { value: new THREE.Color(0.2, 0.2, 0.2) }, // 深灰環境光
+                    diffuseColor: { value: new THREE.Color(0.0, 0.6, 1.0) }, // 藍色物體
+                    specularColor: { value: new THREE.Color(1.0, 1.0, 1.0) }, // 白色高光
+                    shininess: { value: 64.0 } // 高光集中度
+                },
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('fragmentShader').textContent
+            });
+
+            // 5. 載入模型 (這裡用幾何體代替 GLTF 載入測試，若有 GLTF 可在下方替換)
+            // 如果要載入 GLTF，取消註解下方的 loader 代碼
+            /*
+            const loader = new THREE.GLTFLoader();
+            loader.load('path/to/your/model.gltf', function (gltf) {
+                gltf.scene.traverse(function (child) {
+                    if (child.isMesh) {
+                        // 重要：替換掉原本的材質，改用我們手寫的 Shader
+                        child.material = customMaterial;
+                    }
+                });
+                scene.add(gltf.scene);
+            });
+            */
+
+            // 替代方案：使用 TorusKnot (甜甜圈結) 來展示 Shader 效果
+            const geometry = new THREE.TorusKnotGeometry(1, 0.3, 100, 16);
+            modelMesh = new THREE.Mesh(geometry, customMaterial);
+            scene.add(modelMesh);
+
+            // 6. 事件監聽 (模擬頭部追蹤輸入)
+            document.addEventListener('mousemove', onDocumentMouseMove, false);
+            window.addEventListener('resize', onWindowResize, false);
+
+            animate();
+        }
+
+        // 模擬：將滑鼠位置當作人臉位置
+        function onDocumentMouseMove(event) {
+            mouseX = (event.clientX - windowHalfX) / 200; // 縮放係數
+            mouseY = (event.clientY - windowHalfY) / 200;
+            
+            document.getElementById('debug-x').innerText = mouseX.toFixed(2);
+            document.getElementById('debug-y').innerText = mouseY.toFixed(2);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- 渲染循環 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // --- 核心邏輯：Motion Parallax 模擬 ---
+            // 根據人臉位置 (mouseX, mouseY) 移動相機
+            // 這是一種簡化的 off-axis 模擬，讓相機位置改變，但視線永遠看向中心
+            camera.position.x += (mouseX - camera.position.x) * 0.05;
+            camera.position.y += (-mouseY - camera.position.y) * 0.05;
+            camera.lookAt(scene.position);
+
+            // 讓模型自己也轉一點點，展示光影變化
+            if(modelMesh) {
+                modelMesh.rotation.y += 0.005;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
