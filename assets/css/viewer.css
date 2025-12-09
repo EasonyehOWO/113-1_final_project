@@ -1,0 +1,56 @@
+/* 遷移自 GEMINI Prototype */
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: white;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+#info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 100;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    font-size: 14px;
+    max-width: 250px;
+}
+
+#info label {
+    display: block;
+    margin: 5px 0;
+}
+
+#info input[type="range"] {
+    width: 100%;
+}
+
+/* v5.4 新增準心 UI */
+#info .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+#info .checkbox-label input {
+    margin-right: 5px;
+}
+
+/* 隱藏攝影機畫面，我們只需要它的數據 */
+#webcam-feed {
+    display: none;
+}
+
+#render-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
