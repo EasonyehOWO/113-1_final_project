@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'db_connect.php';
+require_once 'config/db_connect.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -71,9 +71,7 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gallery - 3D Model Viewer</title>
-    <style>
-        
-    </style>
+    <link rel="stylesheet" href="assets/css/gallery.css">
 </head>
 <body>
     <div class="header">
@@ -83,6 +81,7 @@ $conn->close();
                 <a href="gallery.php" class="<?= $filter === 'all' ? 'active' : '' ?>">Gallery</a>
                 <a href="gallery.php?filter=my" class="<?= $filter === 'my' ? 'active' : '' ?>">My Models</a>
                 <a href="viewer.php">Viewer</a>
+                <a href="manage.php">Manage My Models</a>
             </nav>
         </div>
         <div class="header-right">
@@ -111,7 +110,7 @@ $conn->close();
                 <h2>No models found</h2>
                 <p><?= $filter === 'my' ? "You haven't uploaded any models yet." : "No models have been uploaded yet." ?></p>
                 <?php if ($filter === 'my'): ?>
-                    <a href="viewer.php" class="upload-btn">Upload Your First Model</a>
+                    <a href="manage.php" class="upload-btn">Upload Your First Model</a>
                 <?php endif; ?>
             </div>
         <?php else: ?>
