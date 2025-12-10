@@ -1,13 +1,13 @@
 <?php
 session_start();
 if (isset($_SESSION['user_id'])) {
-    header('Location: /gallery.php');
+    header('Location: gallery.php');
     exit();
 }
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_once '../config/db_connect.php';
+    require_once 'config/db_connect.php';
     
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (password_verify($password, $user['password'])) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $username;
-            header('Location: /gallery.php');
+            header('Location: gallery.php');
             exit();
         }
     }
@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Prevent Resize -->
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>登入</title>
-    <link rel="stylesheet" href="../assets/css/login_register.css">
+    <link rel="stylesheet" href="assets/css/login_register.css">
 </head>
 <body>
     <div class="container">
