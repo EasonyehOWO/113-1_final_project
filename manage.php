@@ -46,7 +46,7 @@ $conn->close();
         </div>
         <div class="header-right">
             <span class="username"><?= htmlspecialchars($username) ?></span>
-            <a href="api/logout.php" class="logout-btn">Logout</a>
+            <a href="logout.php" class="logout-btn">Logout</a>
         </div>
     </div>
 
