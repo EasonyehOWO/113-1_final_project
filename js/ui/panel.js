@@ -18,19 +18,26 @@ export class Panel {
             sensitivityX: 12.0,
             sensitivityY: 12.0,
             sensitivityZ: 1.0,
-            sensitivityRoll: 20.0,
             lerpFactor: 0.5,
             showCrosshair: true,
             rendererScale: 0.5,
             webcamRes: 'low', // 'low' (320x240) or 'high' (640x480)
             stabilization: true,
-            panelOpacity: 0.6,    // New default
-            showWebcam: true      // New default
+            panelOpacity: 0.6,
+            showWebcam: true,
+            offsetX: 0,
+            offsetY: 0
         };
         
         const stored = localStorage.getItem('viewer_settings');
         return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
     }
+    // ...
+    // Inside initControls, add bindings
+    // ...
+    
+    // (We need to insert bindings in initControls, so I will target a known location)
+
 
     saveSettings() {
         localStorage.setItem('viewer_settings', JSON.stringify(this.settings));
@@ -62,19 +69,15 @@ export class Panel {
 
                     <div class="control-group">
                         <label>X 軸靈敏度: <span id="val-sensX"></span></label>
-                        <input type="range" id="inp-sensX" min="1" max="50" step="0.1">
+                        <input type="range" id="inp-sensX" min="-100" max="100" step="0.2">
                     </div>
                     <div class="control-group">
                         <label>Y 軸靈敏度: <span id="val-sensY"></span></label>
-                        <input type="range" id="inp-sensY" min="1" max="50" step="0.1">
+                        <input type="range" id="inp-sensY" min="-100" max="100" step="0.2">
                     </div>
                     <div class="control-group">
                         <label>Z 軸靈敏度: <span id="val-sensZ"></span></label>
-                        <input type="range" id="inp-sensZ" min="0.01" max="5" step="0.01">
-                    </div>
-                    <div class="control-group">
-                        <label>旋轉 (Roll) 靈敏度: <span id="val-sensRoll"></span></label>
-                        <input type="range" id="inp-sensRoll" min="0" max="100" step="0.5">
+                        <input type="range" id="inp-sensZ" min="-100" max="100" step="0.2">
                     </div>
 
                     <hr>
@@ -85,6 +88,27 @@ export class Panel {
                             <input type="checkbox" id="inp-stabilization">
                             <input type="range" id="inp-lerp" min="0.01" max="1.0" step="0.005" style="flex:1;">
                         </div>
+                    </div>
+
+                    <hr>
+                    
+                    <div class="control-group">
+                        <label style="color: #00bcd4;">校準設定 (Calibration)</label>
+                        <div style="margin-top:5px;">
+                            <label>Webcam 偏移 X (cm): <span id="val-offsetX"></span></label>
+                            <input type="range" id="inp-offsetX" min="-50" max="50" step="1">
+                        </div>
+                        <div style="margin-top:5px;">
+                            <label>Webcam 偏移 Y (cm): <span id="val-offsetY"></span></label>
+                            <input type="range" id="inp-offsetY" min="-50" max="50" step="1">
+                        </div>
+                        <!-- Future Physical Size Inputs (Placeholders for now) -->
+                        <!-- 
+                        <div style="margin-top:5px;">
+                            <label>螢幕寬度 (cm): <span id="val-screenWidth"></span></label>
+                            <input type="number" id="inp-screenWidth" value="30" step="0.5" style="width:60px;">
+                        </div> 
+                        -->
                     </div>
 
                     <hr>
@@ -154,7 +178,9 @@ export class Panel {
             if(disp) disp.innerText = this.settings[key];
 
             el.addEventListener('input', (e) => {
-                const val = parseFloat(e.target.value);
+                let val = parseFloat(e.target.value);
+                if (isNaN(val)) val = 0; // Safety check
+                
                 this.settings[key] = val;
                 if(disp) disp.innerText = val;
                 
@@ -195,8 +221,11 @@ export class Panel {
         bindRange('inp-sensX', 'sensitivityX');
         bindRange('inp-sensY', 'sensitivityY');
         bindRange('inp-sensZ', 'sensitivityZ');
-        bindRange('inp-sensRoll', 'sensitivityRoll');
         bindRange('inp-renderScale', 'rendererScale');
+        
+        // Calibration Bindings
+        bindRange('inp-offsetX', 'offsetX');
+        bindRange('inp-offsetY', 'offsetY');
         
         // Stabilization logic
         const lerpSlider = this.element.querySelector('#inp-lerp');

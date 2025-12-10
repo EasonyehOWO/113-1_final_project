@@ -21,13 +21,14 @@ export const GraphicsApp = {
         sensitivityX: 12.0,
         sensitivityY: 12.0,
         sensitivityZ: 1.0,
-        sensitivityRoll: 20.0,
         convergence: 0.0,
-        showCrosshair: true
+        showCrosshair: true,
+        offsetX: 0,
+        offsetY: 0
     },
 
     updateSettings: function(newSettings) {
-        // Merge settings
+        // ... (existing updateSettings code is fine as Object.assign handles merging) ...
         Object.assign(this.settings, newSettings);
 
         // Apply Renderer Scale
@@ -151,16 +152,22 @@ export const GraphicsApp = {
 
     updateHeadData: function(data) {
         const { x, y, z, roll } = data;
-        // console.log("Tracking Update:", x, y, z, roll); // Uncomment for spam
         
-        // Calculate Target Camera Position
-        const posX = x * this.settings.sensitivityX;
-        const posY = y * this.settings.sensitivityY;
-        const posZ = z; // Z is already calculated in tracker with sensitivity
-        const rotZ = roll * this.settings.sensitivityRoll;
+        // Validate Inputs
+        if (isNaN(x) || isNaN(y) || isNaN(z)) return;
 
-        this.targetCamPos.set(posX, posY, posZ);
-        this.targetCamRotZ = rotZ;
+        // Cleanup: remove unused variables and ensure settings are numbers
+        const offX = isNaN(this.settings.offsetX) ? 0 : this.settings.offsetX;
+        const offY = isNaN(this.settings.offsetY) ? 0 : this.settings.offsetY;
+        
+        // Calculate Final Position: Sensitivity * Raw + Offset
+        const finalX = (x * this.settings.sensitivityX) + offX;
+        const finalY = (y * this.settings.sensitivityY) + offY;
+        
+        const posZ = z; 
+        
+        this.targetCamPos.set(finalX, finalY, posZ);
+        // this.targetCamRotZ = 0; // Roll disabled
     },
 
     onWindowResize: function() {
