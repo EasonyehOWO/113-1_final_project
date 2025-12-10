@@ -1,0 +1,77 @@
+@import "style.css" layer(general);
+
+body {
+    text-align: center;
+    display: flex;
+    flex-flow: column nowrap;
+    justify-content: center;
+    align-items: center;
+}
+
+body .container:has(.auth-box) {
+    padding: var(--big-gap-and-radius);
+    box-shadow: var(--shadow);
+    background-color: rgba(255, 255, 255, 0.5);
+
+    width: 20em;
+    max-width: 100%;
+}
+
+.auth-box {
+    display: flex;
+    flex-flow: column nowrap;
+    gap: var(--gap-and-radius);
+
+    padding: var(--big-gap-and-radius) 0;
+
+    justify-content: center;
+    align-items: center;
+
+    width: 100%;
+
+    & form {
+        display: flex;
+        flex-flow: column nowrap;
+        gap: var(--gap-and-radius);
+
+        width: 100%;
+
+        & .form-group {
+            display: flex;
+            flex-flow: row nowrap;
+            align-items: center;
+            width: 100%;
+
+            & label {
+                flex: 1 0 6em;
+                text-align: right;
+            }
+
+            & input {
+                width: 0; /* rm intrinsic width */
+                flex: 1 calc(100% - 6em);
+            }
+        }
+
+        & button[type="submit"] {
+            width: 100%;
+            background-color: var(--theme-color);
+        }
+    }
+}
+
+#welcome {
+    color: var(--dim-color);
+}
+
+.error {
+    background-color: var(--error-bg-color);
+    color: var(--error-color);
+    padding: var(--gap-and-radius);
+}
+
+.success {
+    background-color: var(--success-bg-color);
+    color: var(--success-color);
+    padding: var(--gap-and-radius);
+}

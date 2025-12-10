@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>註冊</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../assets/css/login_register.css">
 </head>
 <body>
     <div class="container">
@@ -68,20 +68,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
             <form method="POST">
                 <div class="form-group username">
-                    <label>使用者名稱：</label>
-                    <input type="text" name="username" required>
+                    <label for="username">使用者名稱：</label>
+                    <input id="username" class="raised" type="text" name="username" required>
                 </div>
                 <div class="form-group password">
-                    <label>密碼：</label>
-                    <input type="password" name="password" required>
+                    <label for="password">密碼：</label>
+                    <input id="password" class="raised" type="password" name="password" required>
                 </div>
                 <div class="form-group password">
-                    <label>確認密碼：</label>
-                    <input type="password" name="confirm_password" required>
+                    <label for="confirm_password">確認密碼：</label>
+                    <input id="confirm_password" class="raised" type="password" name="confirm_password" required>
                 </div>
-                <button type="submit" class="btn">註冊</button>
+                <button class="raised" type="submit">註冊</button>
             </form>
-            <p class="switch-link">已經有帳號了？ <a href="index.php">登入</a></p>
+            <p class="switch-link">已經有帳號了？ <a href="login.php">登入</a></p>
         </div>
     </div>
 </body>

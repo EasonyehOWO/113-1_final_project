@@ -1,0 +1,104 @@
+* {
+    box-sizing: border-box;
+}
+
+html {
+    /* color picker: #feb41f, https://m2.material.io/design/color/the-color-system.html#tools-for-picking-colors */
+    --color-scheme: light;
+    --color: black;
+    --dim-color: color-mix(in srgb, var(--color) 50%, transparent 50%);
+    --theme-color: #feb41f;
+    --bg-color: #b9dcff; /* Complementary, 100 */
+
+    --error-color: white;
+    --error-bg-color: red;
+
+    --block-bg: rgba(255, 255, 255, 0.5);
+    --dim-block-bg: rgba(255, 255, 255, 0.25);
+
+    --success-color: white;
+    --success-bg-color: green;
+
+    color: var(--color);
+    background-color: var(--bg-color);
+    color-scheme: var(--color-scheme);
+    accent-color: var(--theme-color);
+
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --shadow: 0.1rem 0.1rem 0.2rem var(--shadow-color);
+    --shadow-hover: 0.2rem 0.2rem 0.4rem var(--shadow-color);
+
+    --animation-duration: 0.125s;
+    --gap-and-radius: 0.5rem;
+    --big-gap-and-radius: calc(2 * var(--gap-and-radius));
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+}
+
+input.raised,
+button.raised,
+textarea.raised {
+    border: none;
+    border-radius: var(--gap-and-radius);
+    padding: var(--gap-and-radius);
+    box-shadow: var(--shadow);
+    transition: box-shadow var(--animation-duration) ease-in-out;
+
+    margin: 0;
+    font-size: inherit;
+
+    &:is(:hover, :focus-within) {
+        box-shadow: var(--shadow-hover);
+    }
+}
+
+input.immersive,
+button.immersive,
+textarea.immersive {
+    appearance: none;
+    border: none;
+    display: block;
+    background-color: transparent;
+    font-size: inherit;
+    padding: 0;
+
+    margin: 0;
+    transition: background-color var(--animation-duration);
+
+    &:is(:hover, :focus-within) {
+        background-color: var(--block-bg);
+    }
+
+    &:active {
+        background-color: var(--dim-block-bg);
+    }
+}
+
+dialog {
+    /* assume there is a direct child, .modal-content */
+    border: none;
+    border-radius: var(--gap-and-radius);
+    padding: 0;
+    background: transparent;
+    box-shadow: var(--shadow);
+    max-width: 400px;
+    width: 90%;
+
+    & .modal-content {
+        background: var(--block-bg);
+        padding: var(--big-gap-and-radius);
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-and-radius);
+
+        backdrop-filter: blur(0.5rem);
+    }
+}
+
+dialog::backdrop {
+    background: var(--shadow-color);
+}
