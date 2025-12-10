@@ -28,6 +28,7 @@ CREATE TABLE `models` (
   `title` varchar(100) NOT NULL COMMENT '模型標題',
   `description` text COMMENT '模型描述',
   `filepath` varchar(255) NOT NULL COMMENT '伺服器端檔案路徑 (例: uploads/model_1.glb)',
+  `thumbnail_path` varchar(255) NULL COMMENT '縮圖路徑 (例: uploads/thumbnails/thumb_1.jpg)',
   `uploaded_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),

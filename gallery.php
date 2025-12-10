@@ -23,7 +23,7 @@ if ($filter === 'my') {
     $stmt_count = $conn->prepare($count_query);
     $stmt_count->bind_param("i", $user_id);
     
-    $query = "SELECT m.id, m.title, m.description, m.filepath, m.uploaded_at, u.username 
+    $query = "SELECT m.id, m.title, m.description, m.filepath, m.thumbnail_path, m.uploaded_at, u.username 
               FROM models m 
               JOIN users u ON m.user_id = u.id 
               WHERE m.user_id = ? 
@@ -35,7 +35,7 @@ if ($filter === 'my') {
     $count_query = "SELECT COUNT(*) as total FROM models";
     $stmt_count = $conn->query($count_query);
     
-    $query = "SELECT m.id, m.title, m.description, m.filepath, m.uploaded_at, u.username 
+    $query = "SELECT m.id, m.title, m.description, m.filepath, m.thumbnail_path, m.uploaded_at, u.username 
               FROM models m 
               JOIN users u ON m.user_id = u.id 
               ORDER BY m.uploaded_at DESC 
@@ -86,7 +86,7 @@ $conn->close();
         </div>
         <div class="header-right">
             <span class="username"><?= htmlspecialchars($username) ?></span>
-            <a href="logout.php" class="logout-btn">Logout</a>
+            <a href="api/logout.php" class="logout-btn">Logout</a>
         </div>
     </div>
     
@@ -117,8 +117,17 @@ $conn->close();
             <div class="gallery-grid">
                 <?php foreach ($models as $model): ?>
                     <div class="model-card" onclick="window.location.href='viewer.php?id=<?= $model['id'] ?>'">
-                        <div class="model-preview" id="preview-<?= $model['id'] ?>" data-filepath="<?= htmlspecialchars($model['filepath']) ?>">
-                            <div class="loading-spinner"></div>
+                        <?php
+                            $bgStyle = '';
+                            if (!empty($model['thumbnail_path'])) {
+                                $thumbUrl = htmlspecialchars($model['thumbnail_path']);
+                                $bgStyle = "style=\"background-image: url('$thumbUrl'); background-size: cover; background-position: center;\"";
+                            }
+                        ?>
+                        <div class="model-preview" id="preview-<?= $model['id'] ?>" data-filepath="<?= htmlspecialchars($model['filepath']) ?>" <?= $bgStyle ?>>
+                            <?php if (empty($model['thumbnail_path'])): ?>
+                                <div class="no-thumbnail">No thumbnail. Hover to view</div>
+                            <?php endif; ?>
                         </div>
                         <div class="model-info">
                             <h3 class="model-title"><?= htmlspecialchars($model['title']) ?></h3>
@@ -156,9 +165,20 @@ $conn->close();
         <?php endif; ?>
     </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-        const models = <?= json_encode($models) ?>;
+    <!-- 引入函式庫 (Import Map) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./js/libs/three/three.module.js",
+            "three/addons/": "./js/libs/three/addons/"
+        }
+    }
     </script>
-    <script src="js/gallery.js"></script>
+
+    <script>
+        // Pass PHP data to JS
+        window.galleryModels = <?= json_encode($models) ?>;
+    </script>
+    <script type="module" src="js/gallery.js"></script>
 </body>
 </html>
