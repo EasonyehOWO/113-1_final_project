@@ -71,7 +71,7 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>藝廊 - 3D 模型展示</title>
-    <link rel="stylesheet" href="assets/css/gallery.css">
+    <link rel="stylesheet" href="assets/css/gallery_manage.css">
 </head>
 <body>
     <header>
@@ -90,8 +90,8 @@ $conn->close();
         </div>
     </header>
     
-    <div class="container">
-        <div class="filter-bar">
+    <main class="container">
+        <section class="filter-bar">
             <div class="filter-tabs">
                 <a href="gallery.php" class="raised filter-tab <?= $filter === 'all' ? 'active' : '' ?>">
                     所有模型
@@ -103,20 +103,20 @@ $conn->close();
             <div class="model-count">
                 共 <?= $total_models ?> 個模型
             </div>
-        </div>
+        </section>
         
         <?php if (empty($models)): ?>
-            <div class="empty-state">
+            <section class="empty-state">
                 <h2>沒有找到任何模型</h2>
                 <p><?= $filter === 'my' ? "您還沒有上傳任何模型。" : "目前還沒有任何人上傳模型。" ?></p>
                 <?php if ($filter === 'my'): ?>
                     <a href="manage.php" class="upload-btn">上傳您的第一個模型</a>
                 <?php endif; ?>
-            </div>
+            </section>
         <?php else: ?>
-            <div class="gallery-grid">
+            <section class="gallery-grid">
                 <?php foreach ($models as $model): ?>
-                    <div class="model-card" onclick="window.location.href='viewer.php?id=<?= $model['id'] ?>'">
+                    <article class="model-card" onclick="window.location.href='viewer.php?id=<?= $model['id'] ?>'">
                         <?php
                             $bgStyle = '';
                             if (!empty($model['thumbnail_path'])) {
@@ -137,12 +137,12 @@ $conn->close();
                                 <span><?= date('Y/m/d', strtotime($model['uploaded_at'])) ?></span>
                             </div>
                         </div>
-                    </div>
+                    </article>
                 <?php endforeach; ?>
-            </div>
+            </section>
             
             <?php if ($total_pages > 1): ?>
-                <div class="pagination">
+                <nav class="pagination">
                     <?php if ($page > 1): ?>
                         <a href="?filter=<?= $filter ?>&page=<?= $page - 1 ?>" class="page-btn">← 上一頁</a>
                     <?php else: ?>
@@ -160,10 +160,10 @@ $conn->close();
                     <?php else: ?>
                         <span class="page-btn disabled">下一頁 →</span>
                     <?php endif; ?>
-                </div>
+                </nav>
             <?php endif; ?>
         <?php endif; ?>
-    </div>
+    </main>
     
     <!-- 引入函式庫 (Import Map) -->
     <script type="importmap">

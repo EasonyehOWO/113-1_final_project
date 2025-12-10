@@ -6,10 +6,11 @@ body {
     flex-flow: column nowrap;
     justify-content: center;
     align-items: center;
+    background: var(--theme-gradient); /* Inherit gradient from updated variables */
 }
 
 body .container:has(.auth-box) {
-    padding: var(--big-gap-and-radius);
+    padding: var(--gap-md);
     box-shadow: var(--shadow);
     background-color: rgba(255, 255, 255, 0.5);
 
@@ -20,9 +21,9 @@ body .container:has(.auth-box) {
 .auth-box {
     display: flex;
     flex-flow: column nowrap;
-    gap: var(--gap-and-radius);
+    gap: var(--gap-sm);
 
-    padding: var(--big-gap-and-radius) 0;
+    padding: var(--gap-md) 0;
 
     justify-content: center;
     align-items: center;
@@ -32,7 +33,7 @@ body .container:has(.auth-box) {
     & form {
         display: flex;
         flex-flow: column nowrap;
-        gap: var(--gap-and-radius);
+        gap: var(--gap-sm);
 
         width: 100%;
 
@@ -56,6 +57,11 @@ body .container:has(.auth-box) {
         & button[type="submit"] {
             width: 100%;
             background-color: var(--theme-color);
+            color: var(--color-on-theme-color);
+
+            &:hover {
+                filter: var(--dim-filter);
+            }
         }
     }
 }
@@ -67,11 +73,11 @@ body .container:has(.auth-box) {
 .error {
     background-color: var(--error-bg-color);
     color: var(--error-color);
-    padding: var(--gap-and-radius);
+    padding: var(--gap-sm);
 }
 
 .success {
     background-color: var(--success-bg-color);
     color: var(--success-color);
-    padding: var(--gap-and-radius);
+    padding: var(--gap-sm);
 }
