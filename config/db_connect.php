@@ -1,7 +1,7 @@
 <?php
 $host = 'localhost';
 $dbname = 'cg_final_project';
-$username = 'cg_final_project';
+$username = 'CVML';
 $password = '114DWP2025';
 
 try {

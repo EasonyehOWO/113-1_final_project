@@ -4,8 +4,8 @@
 CREATE DATABASE IF NOT EXISTS `cg_final_project` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `cg_final_project`;
 
-CREATE USER IF NOT EXISTS 'cg_final_project'@'localhost' IDENTIFIED BY '114DWP2025';
-GRANT ALL PRIVILEGES ON `cg_final_project`.* TO 'cg_final_project'@'localhost';
+CREATE USER IF NOT EXISTS 'CVML'@'localhost' IDENTIFIED BY '114DWP2025';
+GRANT ALL PRIVILEGES ON `cg_final_project`.* TO 'CVML'@'localhost';
 FLUSH PRIVILEGES;
 
 DROP TABLE IF EXISTS `models`, `users`;
