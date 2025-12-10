@@ -1,6 +1,7 @@
 // js/tracking/face_tracker.js
+import '../libs/face-api.min.js';
 
-const FaceTracker = {
+export const FaceTracker = {
     videoElement: null,
     statusElement: null,
     canvas: null, // 用來畫偵測框 (Debug用)
@@ -111,12 +112,10 @@ const FaceTracker = {
                     if (this.onUpdateCallback) this.onUpdateCallback(this.lastX, this.lastY);
                 }
             }
-            
-            // 使用 setTimeout 稍微降低偵測頻率，避免卡死 CPU (例如 30fps)
-            setTimeout(loop, 30); 
         };
 
-        loop();
+        // 限制偵測頻率以避免卡死 CPU (例如 30fps)
+        setInterval(loop, 1000 / 30);
     },
 
     onUpdate: function(callback) {

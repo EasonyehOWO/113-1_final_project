@@ -1,6 +1,7 @@
 // js/graphics/scene_init.js
+import * as THREE from 'three';
 
-const GraphicsApp = {
+export const GraphicsApp = {
     scene: null,
     camera: null,
     renderer: null,
