@@ -21,7 +21,7 @@ function setupFileInput(inputId, labelId, defaultText, onChangeCallback) {
 }
 
 // 1. Model File Input - Triggers Auto Generation
-setupFileInput('modelFile', 'fileLabel', 'Click to select a 3D model file (.glb)', async (file) => {
+setupFileInput('modelFile', 'fileLabel', '點擊選擇 3D 模型檔案 (.glb)', async (file) => {
     const previewContainer = document.getElementById('thumbnail-preview-container');
     const previewImg = document.getElementById('thumbnail-preview');
 
@@ -49,7 +49,7 @@ setupFileInput('modelFile', 'fileLabel', 'Click to select a 3D model file (.glb)
 });
 
 // 2. Thumbnail File Input - Clears Auto Gen (Optional, logical behavior)
-setupFileInput('thumbFile', 'thumbLabel', 'Click to select a thumbnail image', (file) => {
+setupFileInput('thumbFile', 'thumbLabel', '點擊選擇縮圖', (file) => {
    // If user selects specific thumb, we might want to hide auto-gen or just keep it as backup.
    // For now, we prefer user file over auto-gen on submit.
 });
@@ -91,15 +91,15 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
         const data = await response.json();
         
         if (data.success) {
-            showMessage('Model uploaded successfully!', 'success');
+            showMessage('模型上傳成功！', 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showMessage(data.message || 'Upload failed', 'error');
+            showMessage(data.message || '上傳失敗', 'error');
             uploadBtn.disabled = false;
             uploadLoading.classList.remove('active');
         }
     } catch (error) {
-        showMessage('Network error. Please try again.', 'error');
+        showMessage('網路錯誤，請重試。', 'error');
         uploadBtn.disabled = false;
         uploadLoading.classList.remove('active');
         console.error(error);
@@ -134,19 +134,19 @@ window.saveModel = async function(modelId) {
         const data = await response.json();
         
         if (data.success) {
-            showMessage('Model updated successfully!', 'success');
+            showMessage('模型更新成功！', 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showMessage(data.message || 'Update failed', 'error');
+            showMessage(data.message || '更新失敗', 'error');
         }
     } catch (error) {
-        showMessage('Network error. Please try again.', 'error');
+        showMessage('網路錯誤，請重試。', 'error');
     }
 };
 
 // Delete model
 window.deleteModel = async function(modelId, title) {
-    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+    if (!confirm(`確定要刪除 "${title}" 嗎？此動作無法復原。`)) {
         return;
     }
     
@@ -163,13 +163,13 @@ window.deleteModel = async function(modelId, title) {
         const data = await response.json();
         
         if (data.success) {
-            showMessage('Model deleted successfully!', 'success');
+            showMessage('模型刪除成功！', 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showMessage(data.message || 'Delete failed', 'error');
+            showMessage(data.message || '刪除失敗', 'error');
         }
     } catch (error) {
-        showMessage('Network error. Please try again.', 'error');
+        showMessage('網路錯誤，請重試。', 'error');
     }
 };
 

@@ -66,51 +66,51 @@ $conn->close();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gallery - 3D Model Viewer</title>
+    <title>藝廊 - 3D 模型展示</title>
     <link rel="stylesheet" href="assets/css/gallery.css">
 </head>
 <body>
-    <div class="header">
+    <header>
         <div class="header-left">
-            <div class="logo">3D Gallery</div>
+            <div class="logo">3D 藝廊</div>
             <nav class="nav-links">
-                <a href="gallery.php" class="<?= $filter === 'all' ? 'active' : '' ?>">Gallery</a>
-                <a href="gallery.php?filter=my" class="<?= $filter === 'my' ? 'active' : '' ?>">My Models</a>
-                <a href="viewer.php">Viewer</a>
-                <a href="manage.php">Manage My Models</a>
+                <a href="gallery.php" class="immersive <?= $filter === 'all' ? ' active' : '' ?>">公開藝廊</a>
+                <a href="gallery.php?filter=my" class="immersive <?= $filter === 'my' ? ' active' : '' ?>">我的模型</a>
+                <a href="viewer.php" class="immersive">裸眼 3D</a>
+                <a href="manage.php" class="immersive">管理模型</a>
             </nav>
         </div>
         <div class="header-right">
             <span class="username"><?= htmlspecialchars($username) ?></span>
-            <a href="logout.php" class="logout-btn">Logout</a>
+            <a href="logout.php" class="logout-btn raised">登出</a>
         </div>
-    </div>
+    </header>
     
     <div class="container">
         <div class="filter-bar">
             <div class="filter-tabs">
-                <a href="gallery.php" class="filter-tab <?= $filter === 'all' ? 'active' : '' ?>">
-                    All Models
+                <a href="gallery.php" class="raised filter-tab <?= $filter === 'all' ? 'active' : '' ?>">
+                    所有模型
                 </a>
-                <a href="gallery.php?filter=my" class="filter-tab <?= $filter === 'my' ? 'active' : '' ?>">
-                    My Models
+                <a href="gallery.php?filter=my" class="raised filter-tab <?= $filter === 'my' ? 'active' : '' ?>">
+                    我的模型
                 </a>
             </div>
             <div class="model-count">
-                <?= $total_models ?> model<?= $total_models !== 1 ? 's' : '' ?>
+                共 <?= $total_models ?> 個模型
             </div>
         </div>
         
         <?php if (empty($models)): ?>
             <div class="empty-state">
-                <h2>No models found</h2>
-                <p><?= $filter === 'my' ? "You haven't uploaded any models yet." : "No models have been uploaded yet." ?></p>
+                <h2>沒有找到任何模型</h2>
+                <p><?= $filter === 'my' ? "您還沒有上傳任何模型。" : "目前還沒有任何人上傳模型。" ?></p>
                 <?php if ($filter === 'my'): ?>
-                    <a href="manage.php" class="upload-btn">Upload Your First Model</a>
+                    <a href="manage.php" class="upload-btn">上傳您的第一個模型</a>
                 <?php endif; ?>
             </div>
         <?php else: ?>
@@ -121,20 +121,20 @@ $conn->close();
                             $bgStyle = '';
                             if (!empty($model['thumbnail_path'])) {
                                 $thumbUrl = htmlspecialchars($model['thumbnail_path']);
-                                $bgStyle = "style=\"background-image: url('$thumbUrl'); background-size: cover; background-position: center;\"";
+                                $bgStyle = "style=\"background-image: url('$thumbUrl');\"";
                             }
                         ?>
                         <div class="model-preview" id="preview-<?= $model['id'] ?>" data-filepath="<?= htmlspecialchars($model['filepath']) ?>" <?= $bgStyle ?>>
                             <?php if (empty($model['thumbnail_path'])): ?>
-                                <div class="no-thumbnail">No thumbnail. Hover to view</div>
+                                <div class="no-thumbnail">無縮圖，滑鼠移入可預覽</div>
                             <?php endif; ?>
                         </div>
                         <div class="model-info">
                             <h3 class="model-title"><?= htmlspecialchars($model['title']) ?></h3>
-                            <p class="model-description"><?= htmlspecialchars($model['description'] ?: 'No description') ?></p>
+                            <p class="model-description"><?= htmlspecialchars($model['description'] ?: '沒有說明') ?></p>
                             <div class="model-meta">
                                 <span class="model-author"><?= htmlspecialchars($model['username']) ?></span>
-                                <span><?= date('M j, Y', strtotime($model['uploaded_at'])) ?></span>
+                                <span><?= date('Y/m/d', strtotime($model['uploaded_at'])) ?></span>
                             </div>
                         </div>
                     </div>
@@ -144,9 +144,9 @@ $conn->close();
             <?php if ($total_pages > 1): ?>
                 <div class="pagination">
                     <?php if ($page > 1): ?>
-                        <a href="?filter=<?= $filter ?>&page=<?= $page - 1 ?>" class="page-btn">← Previous</a>
+                        <a href="?filter=<?= $filter ?>&page=<?= $page - 1 ?>" class="page-btn">← 上一頁</a>
                     <?php else: ?>
-                        <span class="page-btn disabled">← Previous</span>
+                        <span class="page-btn disabled">← 上一頁</span>
                     <?php endif; ?>
                     
                     <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
@@ -156,9 +156,9 @@ $conn->close();
                     <?php endfor; ?>
                     
                     <?php if ($page < $total_pages): ?>
-                        <a href="?filter=<?= $filter ?>&page=<?= $page + 1 ?>" class="page-btn">Next →</a>
+                        <a href="?filter=<?= $filter ?>&page=<?= $page + 1 ?>" class="page-btn">下一頁 →</a>
                     <?php else: ?>
-                        <span class="page-btn disabled">Next →</span>
+                        <span class="page-btn disabled">下一頁 →</span>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>

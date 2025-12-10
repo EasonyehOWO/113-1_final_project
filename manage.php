@@ -26,88 +26,88 @@ $conn->close();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Models - 3D Model Viewer</title>
+    <title>管理模型 - 3D 藝廊</title>
     <link rel="stylesheet" href="assets/css/manage.css">
 </head>
 <body>
     <div class="header">
         <div class="header-left">
-            <div class="logo">3D Gallery</div>
+            <div class="logo">3D 藝廊</div>
             <nav class="nav-links">
-                <a href="gallery.php">Gallery</a>
-                <a href="gallery.php?filter=my">My Models</a>
-                <a href="viewer.php">Viewer</a>
-                <a href="manage.php" class="active">Manage My Models</a>
+                <a href="gallery.php">公開藝廊</a>
+                <a href="gallery.php?filter=my">我的模型</a>
+                <a href="viewer.php">裸眼 3D</a>
+                <a href="manage.php" class="active">管理模型</a>
             </nav>
         </div>
         <div class="header-right">
             <span class="username"><?= htmlspecialchars($username) ?></span>
-            <a href="logout.php" class="logout-btn">Logout</a>
+            <a href="logout.php" class="logout-btn">登出</a>
         </div>
     </div>
 
     <div class="container">
         <div class="page-header">
-            <h1>Manage My Models</h1>
-            <p>Upload new 3D models or manage your existing ones</p>
+            <h1>管理我的模型</h1>
+            <p>上傳新的 3D 模型或管理現有的模型</p>
         </div>
 
         <div id="message-container"></div>
 
         <div class="upload-section">
-            <h2>Upload New Model</h2>
+            <h2>上傳新模型</h2>
             <form id="uploadForm" class="upload-form" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label for="title">Title *</label>
-                    <input type="text" id="title" name="title" required placeholder="Enter model title">
+                    <label for="title">標題 *</label>
+                    <input type="text" id="title" name="title" required placeholder="輸入模型標題">
                 </div>
 
                 <div class="form-group">
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description" placeholder="Enter model description (optional)"></textarea>
+                    <label for="description">說明</label>
+                    <textarea id="description" name="description" placeholder="輸入模型說明 (選填)"></textarea>
                 </div>
 
                 <div class="form-group">
-                    <label>Model File *</label>
+                    <label>模型檔案 *</label>
                     <div class="file-input-wrapper">
                         <input type="file" id="modelFile" name="model_file" accept=".glb" required>
                         <label for="modelFile" class="file-input-label" id="fileLabel">
-                            Click to select a 3D model file (.glb)
+                            點擊選擇 3D 模型檔案 (.glb)
                         </label>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Thumbnail (Optional)</label>
+                    <label>縮圖 (選填)</label>
                     <div class="file-input-wrapper">
                         <input type="file" id="thumbFile" name="thumbnail_file" accept=".jpg,.jpeg,.png,.webp">
                         <label for="thumbFile" class="file-input-label" id="thumbLabel">
-                            Click to select a thumbnail image
+                            點擊選擇縮圖
                         </label>
                     </div>
                     <!-- Auto-generated thumbnail preview -->
                     <div id="thumbnail-preview-container" style="display: none; margin-top: 10px;">
-                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Auto-generated Preview:</p>
-                        <img id="thumbnail-preview" src="" alt="Thumbnail Preview" style="max-width: 200px; border-radius: 8px; border: 1px solid #ddd;">
+                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">自動產生的預覽圖:</p>
+                        <img id="thumbnail-preview" src="" alt="縮圖預覽" style="max-width: 200px; border-radius: 8px; border: 1px solid #ddd;">
                     </div>
                 </div>
 
-                <button type="submit" class="submit-btn" id="uploadBtn">Upload Model</button>
+                <button type="submit" class="submit-btn" id="uploadBtn">上傳模型</button>
             </form>
-            <div class="loading" id="uploadLoading">Uploading...</div>
+            <div class="loading" id="uploadLoading">上傳中...</div>
         </div>
 
         <div class="models-section">
-            <h2>My Models (<?= count($models) ?>)</h2>
+            <h2>我的模型 (<?= count($models) ?>)</h2>
             
             <?php if (empty($models)): ?>
                 <div class="empty-state">
-                    <h3>No models yet</h3>
-                    <p>Upload your first 3D model using the form above</p>
+                    <h3>目前沒有模型</h3>
+                    <p>請使用上方的表單上傳您的第一個模型</p>
                 </div>
             <?php else: ?>
                 <div class="models-list" id="modelsList">
@@ -116,29 +116,29 @@ $conn->close();
                             <div class="model-item-header">
                                 <div class="model-item-info">
                                     <h3 class="model-title"><?= htmlspecialchars($model['title']) ?></h3>
-                                    <p class="model-description"><?= htmlspecialchars($model['description'] ?: 'No description') ?></p>
+                                    <p class="model-description"><?= htmlspecialchars($model['description'] ?: '沒有說明') ?></p>
                                     <div class="model-item-meta">
-                                        Uploaded: <?= date('M j, Y g:i A', strtotime($model['uploaded_at'])) ?>
+                                        上傳時間: <?= date('Y/m/d H:i', strtotime($model['uploaded_at'])) ?>
                                     </div>
                                 </div>
                                 <div class="model-item-actions">
-                                    <button class="btn-edit" onclick="editModel(<?= $model['id'] ?>)">Edit</button>
-                                    <button class="btn-delete" onclick="deleteModel(<?= $model['id'] ?>, '<?= htmlspecialchars($model['title'], ENT_QUOTES) ?>')">Delete</button>
+                                    <button class="btn-edit" onclick="editModel(<?= $model['id'] ?>)">編輯</button>
+                                    <button class="btn-delete" onclick="deleteModel(<?= $model['id'] ?>, '<?= htmlspecialchars($model['title'], ENT_QUOTES) ?>')">刪除</button>
                                 </div>
                             </div>
                             
                             <form class="edit-form" id="edit-form-<?= $model['id'] ?>">
                                 <div class="form-group">
-                                    <label>Title *</label>
+                                    <label>標題 *</label>
                                     <input type="text" name="title" value="<?= htmlspecialchars($model['title']) ?>" required>
                                 </div>
                                 <div class="form-group">
-                                    <label>Description</label>
+                                    <label>說明</label>
                                     <textarea name="description"><?= htmlspecialchars($model['description']) ?></textarea>
                                 </div>
                                 <div class="model-item-actions">
-                                    <button type="button" class="btn-save" onclick="saveModel(<?= $model['id'] ?>)">Save Changes</button>
-                                    <button type="button" class="btn-cancel" onclick="cancelEdit(<?= $model['id'] ?>)">Cancel</button>
+                                    <button type="button" class="btn-save" onclick="saveModel(<?= $model['id'] ?>)">儲存變更</button>
+                                    <button type="button" class="btn-cancel" onclick="cancelEdit(<?= $model['id'] ?>)">取消</button>
                                 </div>
                             </form>
                         </div>

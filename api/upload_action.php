@@ -3,7 +3,7 @@ session_start();
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
-    echo json_encode(['success' => false, 'message' => 'Not authenticated']);
+    echo json_encode(['success' => false, 'message' => '未登入']);
     exit();
 }
 
@@ -24,7 +24,7 @@ if ($action === 'upload') {
     // </form>
 
     if (!isset($_FILES['model_file']) || $_FILES['model_file']['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error']);
+        echo json_encode(['success' => false, 'message' => '未上傳檔案或上傳發生錯誤']);
         exit();
     }
 
@@ -33,13 +33,13 @@ if ($action === 'upload') {
     $file = $_FILES['model_file'];
 
     if (empty($title)) {
-        echo json_encode(['success' => false, 'message' => 'Title is required']);
+        echo json_encode(['success' => false, 'message' => '標題為必填']);
         exit();
     }
 
     $maxFileSize = 20 * 1024 * 1024; // 20MB in bytes
     if ($file['size'] > $maxFileSize) {
-        echo json_encode(['success' => false, 'message' => 'File size exceeds 20MB limit']);
+        echo json_encode(['success' => false, 'message' => '檔案大小超過 20MB 限制']);
         exit();
     }
 
@@ -48,7 +48,7 @@ if ($action === 'upload') {
     $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     
     if (!in_array($fileExtension, $allowedExtensions)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid file type. Allowed: ' . implode(', ', $allowedExtensions)]);
+        echo json_encode(['success' => false, 'message' => '不支援的檔案類型。允許: ' . implode(', ', $allowedExtensions)]);
         exit();
     }
 
@@ -63,7 +63,7 @@ if ($action === 'upload') {
     $dbPath = 'uploads/' . $uniqueFilename;
 
     if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-        echo json_encode(['success' => false, 'message' => 'Failed to save file']);
+        echo json_encode(['success' => false, 'message' => '儲存檔案失敗']);
         exit();
     }
 
@@ -96,13 +96,13 @@ if ($action === 'upload') {
         $model_id = $stmt->insert_id;
         echo json_encode([
             'success' => true, 
-            'message' => 'Model uploaded successfully',
+            'message' => '模型上傳成功',
             'model_id' => $model_id,
             'filepath' => $dbPath
         ]);
     } else {
         unlink($targetPath);
-        echo json_encode(['success' => false, 'message' => 'Database error: ' . $stmt->error]);
+        echo json_encode(['success' => false, 'message' => '資料庫錯誤: ' . $stmt->error]);
     }
 
     $stmt->close();
@@ -112,7 +112,7 @@ if ($action === 'upload') {
     $model_id = intval($_POST['model_id'] ?? 0);
 
     if ($model_id <= 0) {
-        echo json_encode(['success' => false, 'message' => 'Invalid model ID']);
+        echo json_encode(['success' => false, 'message' => '無效的模型 ID']);
         exit();
     }
 
@@ -122,7 +122,7 @@ if ($action === 'upload') {
     $result = $stmt->get_result();
 
     if ($result->num_rows === 0) {
-        echo json_encode(['success' => false, 'message' => 'Model not found or access denied']);
+        echo json_encode(['success' => false, 'message' => '找不到模型或無權限']);
         exit();
     }
 
@@ -146,9 +146,9 @@ if ($action === 'upload') {
             }
         }
         
-        echo json_encode(['success' => true, 'message' => 'Model deleted successfully']);
+        echo json_encode(['success' => true, 'message' => '模型刪除成功']);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to delete model']);
+        echo json_encode(['success' => false, 'message' => '刪除模型失敗']);
     }
 
     $stmt->close();
@@ -168,12 +168,12 @@ if ($action === 'upload') {
     $description = trim($_POST['description'] ?? '');
 
     if ($model_id <= 0) {
-        echo json_encode(['success' => false, 'message' => 'Invalid model ID']);
+        echo json_encode(['success' => false, 'message' => '無效的模型 ID']);
         exit();
     }
 
     if (empty($title)) {
-        echo json_encode(['success' => false, 'message' => 'Title is required']);
+        echo json_encode(['success' => false, 'message' => '標題為必填']);
         exit();
     }
 
@@ -183,7 +183,7 @@ if ($action === 'upload') {
     $result = $stmt->get_result();
 
     if ($result->num_rows === 0) {
-        echo json_encode(['success' => false, 'message' => 'Model not found or access denied']);
+        echo json_encode(['success' => false, 'message' => '找不到模型或無權限']);
         exit();
     }
     $stmt->close();
@@ -194,16 +194,16 @@ if ($action === 'upload') {
     if ($stmt->execute()) {
         echo json_encode([
             'success' => true, 
-            'message' => 'Model updated successfully',
+            'message' => '模型更新成功',
             'model_id' => $model_id
         ]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to update model']);
+        echo json_encode(['success' => false, 'message' => '更新模型失敗']);
     }
 
     $stmt->close();
 } else {
-    echo json_encode(['success' => false, 'message' => 'Invalid action']);
+    echo json_encode(['success' => false, 'message' => '無效的操作']);
 }
 
 $conn->close();
