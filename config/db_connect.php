@@ -1,14 +1,18 @@
 <?php
 $host = 'localhost';
-$dbname = 'cvml';
-$username = 'cvml';
+$dbname = 'cg_final_project';
+$username = 'cg_final_project';
 $password = '114DWP2025';
 
-$conn = new mysqli($host, $username, $password, $dbname);
+try {
+    $conn = new mysqli($host, $username, $password, $dbname);
+    if ($conn->connect_error) {
+        throw new Exception("Connection failed: " . $conn->connect_error);
+    }
 
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+    $conn->set_charset("utf8mb4");  
+} catch (Exception $e) {
+    error_log($e);
+    die($e->getMessage());
 }
-
-$conn->set_charset("utf8mb4");
 ?>
