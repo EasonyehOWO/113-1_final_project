@@ -1,6 +1,7 @@
 // js/tracking/face_tracker.js
+import '../libs/face-api.min.js';
 
-const FaceTracker = {
+export const FaceTracker = {
     videoElement: null,
     statusElement: null,
     canvas: null, // 用來畫偵測框 (Debug用)

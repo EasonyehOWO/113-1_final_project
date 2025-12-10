@@ -64,21 +64,19 @@ $modelPath = isset($_GET['model']) ? $_GET['model'] : 'assets/models/default_cub
     <!-- 3D 渲染區域 -->
     <div id="canvas-container"></div>
 
-    <!-- 引入函式庫 -->
-    <!-- 1. Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- 2. GLTFLoader -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <!-- 3. Face Tracking Library (例如 clmtrackr 或其他) -->
-     <!-- 引入 Face-api -->
-    <script src="js/libs/face-api.min.js"></script>
-    <!-- 接著才是我們原本的 -->
-    <script src="js/tracking/face_tracker.js"></script>
-    
-    <!-- 引入我們自定義的模組 -->
-    <script src="js/tracking/face_tracker.js"></script>
-    <script src="js/graphics/scene_init.js"></script>
-    <script src="js/main.js"></script>
+    <!-- 引入函式庫 (Import Map) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./js/libs/three/three.module.js",
+            "three/addons/": "./js/libs/three/addons/",
+            "@mediapipe/tasks-vision": "./js/libs/mediapipe/vision_bundle.mjs"
+        }
+    }
+    </script>
+
+    <!-- 主程式入口 -->
+    <script type="module" src="js/main.js"></script>
 
     <script>
         // 將 PHP 變數傳給 JS
