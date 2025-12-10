@@ -1,16 +1,24 @@
 // js/main.js
 import { GraphicsApp } from './graphics/scene_init.js';
 import { FaceTracker } from './tracking/face_tracker.js';
+import { Panel } from './ui/panel.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // 1. 初始化圖學模組 (在 id="canvas-container" 中)
+    // 1. Initialize graphics module
     GraphicsApp.init('canvas-container');
 
-    // 2. 初始化追蹤模組 (使用 id="video-preview" 顯示影像)
+    // 2. Initialize tracking module
     FaceTracker.init('video-preview');
 
-    // 3. 核心連結：當 FaceTracker 數據更新時，通知 GraphicsApp 更新相機
+    // 3. Initialize UI Panel
+    const panel = new Panel({
+        onUpdate: (settings) => {
+            GraphicsApp.updateSettings(settings);
+            FaceTracker.updateSettings(settings);
+        }
+    });
+
+    // 4. Core connection: When FaceTracker data updates, notify GraphicsApp to update camera
     FaceTracker.onUpdate((data) => {
         GraphicsApp.updateHeadData(data);
     });
@@ -18,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Debug: Expose to window
     window.GraphicsApp = GraphicsApp;
     window.FaceTracker = FaceTracker;
+    window.Panel = panel;
 
-    console.log("System Integrated: Tracking -> Graphics");
+    console.log("System Integrated: Tracking -> Graphics + UI Panel");
 });
-

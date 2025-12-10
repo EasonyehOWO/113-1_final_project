@@ -20,10 +20,27 @@ export const GraphicsApp = {
     settings: {
         sensitivityX: 12.0,
         sensitivityY: 12.0,
-        sensitivityZ: 1.0,  // Multiplier for Z-depth
+        sensitivityZ: 1.0,
         sensitivityRoll: 20.0,
         convergence: 0.0,
         showCrosshair: true
+    },
+
+    updateSettings: function(newSettings) {
+        // Merge settings
+        Object.assign(this.settings, newSettings);
+
+        // Apply Renderer Scale
+        if (this.renderer && newSettings.rendererScale) {
+            this.renderer.setPixelRatio(newSettings.rendererScale);
+        }
+
+        // Apply Crosshair visibility immediately
+        if (!newSettings.showCrosshair && this.hitMarker) {
+             this.hitMarker.visible = false;
+             if(this.floorProjectionLine) this.floorProjectionLine.visible = false;
+             if(this.wallProjectionLine) this.wallProjectionLine.visible = false;
+        }
     },
 
     // Camera State (Smoothing)

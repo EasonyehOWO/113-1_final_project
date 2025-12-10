@@ -140,5 +140,23 @@ export const FaceTracker = {
 
     onUpdate: function(callback) {
         this.onUpdateCallback = callback;
+    },
+
+    updateSettings: function(settings) {
+        if (settings.stabilization !== undefined && settings.lerpFactor !== undefined) {
+            // If stabilization is off, set lerp to 1.0 (instant), else use factor
+            this.lerpFactor = settings.stabilization ? settings.lerpFactor : 1.0;
+        }
+        
+        // Webcam Resolution handling (DisplaySize)
+        if (settings.webcamRes) {
+            const width = settings.webcamRes === 'high' ? 640 : 320;
+            const height = settings.webcamRes === 'high' ? 480 : 240;
+            this.displaySize = { width, height };
+            if(this.videoElement) {
+                 this.videoElement.width = width;
+                 this.videoElement.height = height;
+            }
+        }
     }
 };
