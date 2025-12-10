@@ -1,91 +1,125 @@
-models.forEach(model => {
-    const container = document.getElementById(`preview-${model.id}`);
-    const filepath = container.dataset.filepath;
+// js/gallery.js
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// Global state to manage the active preview
+let activePreview = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const models = window.galleryModels || [];
+    
+    models.forEach(model => {
+        const container = document.getElementById(`preview-${model.id}`);
+        if (!container) return;
+
+        // Hover events
+        container.addEventListener('mouseenter', () => {
+            loadPreview(container, model.filepath);
+        });
+
+        container.addEventListener('mouseleave', () => {
+            disposePreview(container);
+        });
+    });
+});
+
+function loadPreview(container, filepath) {
+    // If there's already an active preview (maybe stuck), dispose it
+    if (activePreview) {
+        disposePreview(activePreview.container);
+    }
+
+    // Setup Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf5f5f5);
 
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, 0, 5);
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, 0, 3); // Default position
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight.position.set(5, 5, 5);
+    scene.add(dirLight);
+
+    // Animation Loop
+    let requestID;
+    let model3d = null;
+
+    const animate = () => {
+        requestID = requestAnimationFrame(animate);
+        if (model3d) {
+            model3d.rotation.y += 0.01;
+        }
+        renderer.render(scene, camera);
+    };
+    animate();
+
+    // Load Model
+    // Simple extension check
+    const ext = filepath.split('.').pop().toLowerCase();
     
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 5, 5);
-    directionalLight.castShadow = true;
-    scene.add(directionalLight);
+    if (ext === 'glb' || ext === 'gltf') {
+        const loader = new GLTFLoader();
+        loader.load(filepath, (gltf) => {
+            model3d = gltf.scene;
+            
+            // Normalize Scale
+            const box = new THREE.Box3().setFromObject(model3d);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = 2.0 / maxDim; // Fit into view
+            model3d.scale.setScalar(scale);
+            model3d.position.sub(center.multiplyScalar(scale)); // Center it
 
-    const extension = filepath.split('.').pop().toLowerCase();
-    const loader = getLoader(extension);
-    
-    if (loader) {
-        loader.load(
-            filepath,
-            (object) => {
-                const spinner = container.querySelector('.loading-spinner');
-                if (spinner) spinner.remove();
-                let model3d = object.scene || object;
+            scene.add(model3d);
 
-                const box = new THREE.Box3().setFromObject(model3d);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const scale = 3 / maxDim;
-                
-                model3d.scale.multiplyScalar(scale);
-                model3d.position.sub(center.multiplyScalar(scale));
-                
-                scene.add(model3d);
+            // Hide spinner
+            const spinner = container.querySelector('.loading-spinner');
+            if (spinner) spinner.style.display = 'none';
 
-                container.appendChild(renderer.domElement);
-
-                let time = 0;
-                function animate() {
-                    requestAnimationFrame(animate);
-                    time += 0.01;
-                    model3d.rotation.y = time;
-                    renderer.render(scene, camera);
-                }
-                animate();
-            },
-            undefined,
-            (error) => {
-                console.error('Error loading model:', error);
-                const spinner = container.querySelector('.loading-spinner');
-                if (spinner) {
-                    spinner.style.borderTopColor = '#ff4757';
-                }
-            }
-        );
+        }, undefined, (err) => {
+            console.error("Failed to load model", err);
+            const spinner = container.querySelector('.loading-spinner');
+            if (spinner) spinner.style.borderTopColor = 'red';
+        });
+    } else {
+        console.warn('Unsupported file type for preview:', ext);
+        // Temporarily support only GLTF/GLB since we only downloaded that loader
     }
-});
 
-function getLoader(extension) {
-    switch(extension) {
-        case 'gltf':
-        case 'glb':
-            if (typeof THREE.GLTFLoader !== 'undefined') {
-                return new THREE.GLTFLoader();
-            }
-            console.error('GLTFLoader not available');
-            return null;
-        case 'obj':
-            if (typeof THREE.OBJLoader !== 'undefined') {
-                return new THREE.OBJLoader();
-            }
-            console.error('OBJLoader not available');
-            return null;
-        default:
-            return null;
-    }
+    // Store state
+    activePreview = {
+        container,
+        scene,
+        renderer,
+        requestID
+    };
 }
 
-// Handle window resize
-window.addEventListener('resize', () => {
-    // Could add resize handling for renderers if needed
-});
+function disposePreview(container) {
+    if (!activePreview || activePreview.container !== container) return;
+
+    // Stop loop
+    cancelAnimationFrame(activePreview.requestID);
+
+    // Dispose Three.js resources
+    activePreview.renderer.dispose();
+    
+    // Remove Canvas
+    const canvas = container.querySelector('canvas');
+    if (canvas) canvas.remove();
+
+    // Show spinner again (reset state)
+    const spinner = container.querySelector('.loading-spinner');
+    if (spinner) spinner.style.display = 'block';
+    
+    activePreview = null;
+}

@@ -86,7 +86,7 @@ $conn->close();
         </div>
         <div class="header-right">
             <span class="username"><?= htmlspecialchars($username) ?></span>
-            <a href="logout.php" class="logout-btn">Logout</a>
+            <a href="api/logout.php" class="logout-btn">Logout</a>
         </div>
     </div>
     
@@ -156,9 +156,20 @@ $conn->close();
         <?php endif; ?>
     </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-        const models = <?= json_encode($models) ?>;
+    <!-- 引入函式庫 (Import Map) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./js/libs/three/three.module.js",
+            "three/addons/": "./js/libs/three/addons/"
+        }
+    }
     </script>
-    <script src="js/gallery.js"></script>
+
+    <script>
+        // Pass PHP data to JS
+        window.galleryModels = <?= json_encode($models) ?>;
+    </script>
+    <script type="module" src="js/gallery.js"></script>
 </body>
 </html>

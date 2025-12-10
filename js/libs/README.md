@@ -11,6 +11,11 @@
 - **來源**: `https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/loaders/GLTFLoader.js`
 - **本地路徑**: `js/libs/three/addons/loaders/GLTFLoader.js`
 
+#### BufferGeometryUtils (GLTFLoader 依賴)
+- **版本**: 0.149.0
+- **來源**: `https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/utils/BufferGeometryUtils.js`
+- **本地路徑**: `js/libs/three/addons/utils/BufferGeometryUtils.js`
+
 ## Face-API.js
 - **版本**: (Unknown / User Provided)
 - **本地路徑**: `js/libs/face-api.min.js`
