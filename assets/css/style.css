@@ -39,6 +39,7 @@ body {
     min-height: 100vh;
 }
 
+a.raised,
 input.raised,
 button.raised,
 textarea.raised {
@@ -51,11 +52,19 @@ textarea.raised {
     margin: 0;
     font-size: inherit;
 
+    &:is(a) {
+        display: inline-block;
+        text-decoration: none;
+    }
+
     &:is(:hover, :focus-within) {
-        box-shadow: var(--shadow-hover);
+        &:not(:active) {
+            box-shadow: var(--shadow-hover);
+        }
     }
 }
 
+a.immersive,
 input.immersive,
 button.immersive,
 textarea.immersive {
@@ -68,6 +77,10 @@ textarea.immersive {
 
     margin: 0;
     transition: background-color var(--animation-duration);
+
+    &:is(a) {
+        text-decoration: none;
+    }
 
     &:is(:hover, :focus-within) {
         background-color: var(--block-bg);

@@ -74,29 +74,29 @@ $conn->close();
     <link rel="stylesheet" href="assets/css/gallery.css">
 </head>
 <body>
-    <div class="header">
+    <header>
         <div class="header-left">
             <div class="logo">3D 藝廊</div>
             <nav class="nav-links">
-                <a href="gallery.php" class="<?= $filter === 'all' ? 'active' : '' ?>">公開藝廊</a>
-                <a href="gallery.php?filter=my" class="<?= $filter === 'my' ? 'active' : '' ?>">我的模型</a>
-                <a href="viewer.php">裸眼 3D</a>
-                <a href="manage.php">管理模型</a>
+                <a href="gallery.php" class="immersive <?= $filter === 'all' ? ' active' : '' ?>">公開藝廊</a>
+                <a href="gallery.php?filter=my" class="immersive <?= $filter === 'my' ? ' active' : '' ?>">我的模型</a>
+                <a href="viewer.php" class="immersive">裸眼 3D</a>
+                <a href="manage.php" class="immersive">管理模型</a>
             </nav>
         </div>
         <div class="header-right">
             <span class="username"><?= htmlspecialchars($username) ?></span>
-            <a href="logout.php" class="logout-btn">登出</a>
+            <a href="logout.php" class="logout-btn raised">登出</a>
         </div>
-    </div>
+    </header>
     
     <div class="container">
         <div class="filter-bar">
             <div class="filter-tabs">
-                <a href="gallery.php" class="filter-tab <?= $filter === 'all' ? 'active' : '' ?>">
+                <a href="gallery.php" class="raised filter-tab <?= $filter === 'all' ? 'active' : '' ?>">
                     所有模型
                 </a>
-                <a href="gallery.php?filter=my" class="filter-tab <?= $filter === 'my' ? 'active' : '' ?>">
+                <a href="gallery.php?filter=my" class="raised filter-tab <?= $filter === 'my' ? 'active' : '' ?>">
                     我的模型
                 </a>
             </div>
@@ -121,7 +121,7 @@ $conn->close();
                             $bgStyle = '';
                             if (!empty($model['thumbnail_path'])) {
                                 $thumbUrl = htmlspecialchars($model['thumbnail_path']);
-                                $bgStyle = "style=\"background-image: url('$thumbUrl'); background-size: cover; background-position: center;\"";
+                                $bgStyle = "style=\"background-image: url('$thumbUrl');\"";
                             }
                         ?>
                         <div class="model-preview" id="preview-<?= $model['id'] ?>" data-filepath="<?= htmlspecialchars($model['filepath']) ?>" <?= $bgStyle ?>>
