@@ -1,4 +1,6 @@
 // js/main.js
+import { GraphicsApp } from './graphics/scene_init.js';
+import { FaceTracker } from './tracking/face_tracker.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     
