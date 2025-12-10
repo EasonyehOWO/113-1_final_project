@@ -46,7 +46,7 @@ $conn->close();
         </div>
         <div class="header-right">
             <span class="username"><?= htmlspecialchars($username) ?></span>
-            <a href="logout.php" class="logout-btn">Logout</a>
+            <a href="api/logout.php" class="logout-btn">Logout</a>
         </div>
     </div>
 
@@ -78,6 +78,21 @@ $conn->close();
                         <label for="modelFile" class="file-input-label" id="fileLabel">
                             Click to select a 3D model file (.glb)
                         </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Thumbnail (Optional)</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="thumbFile" name="thumbnail_file" accept=".jpg,.jpeg,.png,.webp">
+                        <label for="thumbFile" class="file-input-label" id="thumbLabel">
+                            Click to select a thumbnail image
+                        </label>
+                    </div>
+                    <!-- Auto-generated thumbnail preview -->
+                    <div id="thumbnail-preview-container" style="display: none; margin-top: 10px;">
+                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Auto-generated Preview:</p>
+                        <img id="thumbnail-preview" src="" alt="Thumbnail Preview" style="max-width: 200px; border-radius: 8px; border: 1px solid #ddd;">
                     </div>
                 </div>
 
@@ -133,6 +148,15 @@ $conn->close();
         </div>
     </div>
 
-    <script src="js/manage.js"></script>
+    <!-- 引入函式庫 (Import Map) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./js/libs/three/three.module.js",
+            "three/addons/": "./js/libs/three/addons/"
+        }
+    }
+    </script>
+    <script type="module" src="js/manage.js"></script>
 </body>
 </html>

@@ -164,7 +164,7 @@ body {
     height: 100%;
 }
 
-.loading-spinner {
+/* .loading-spinner {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -175,6 +175,20 @@ body {
     border-top: 4px solid #667eea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+} */
+
+.no-thumbnail {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #666;
+    font-size: 0.9rem;
+    text-align: center;
+    
+    .model-preview:hover & {
+        display: none;
+    }
 }
 
 @keyframes spin {

@@ -19,6 +19,7 @@ if ($action === 'upload') {
     //     <input type="text" name="title" placeholder="Model Title" required>
     //     <textarea name="description" placeholder="Description"></textarea>
     //     <input type="file" name="model_file" accept=".glb" required>
+    //     <input type="file" name="thumbnail_file" accept="image/*">
     //     <button type="submit">Upload</button>
     // </form>
 
@@ -66,8 +67,30 @@ if ($action === 'upload') {
         exit();
     }
 
-    $stmt = $conn->prepare("INSERT INTO models (user_id, title, description, filepath, uploaded_at) VALUES (?, ?, ?, ?, NOW())");
-    $stmt->bind_param("isss", $user_id, $title, $description, $dbPath);
+    // Handle Thumbnail Upload
+    $thumbnailPath = null;
+    if (isset($_FILES['thumbnail_file']) && $_FILES['thumbnail_file']['error'] === UPLOAD_ERR_OK) {
+        $thumbFile = $_FILES['thumbnail_file'];
+        $allowedThumbExts = ['jpg', 'jpeg', 'png', 'webp'];
+        $thumbExt = strtolower(pathinfo($thumbFile['name'], PATHINFO_EXTENSION));
+        
+        if (in_array($thumbExt, $allowedThumbExts) && $thumbFile['size'] <= 5 * 1024 * 1024) { // 5MB limit
+            $thumbDir = '../uploads/thumbnails/';
+            if (!file_exists($thumbDir)) {
+                mkdir($thumbDir, 0755, true);
+            }
+            
+            $thumbFilename = 'thumb_' . uniqid() . '.' . $thumbExt;
+            $thumbTarget = $thumbDir . $thumbFilename;
+            
+            if (move_uploaded_file($thumbFile['tmp_name'], $thumbTarget)) {
+                $thumbnailPath = 'uploads/thumbnails/' . $thumbFilename;
+            }
+        }
+    }
+
+    $stmt = $conn->prepare("INSERT INTO models (user_id, title, description, filepath, thumbnail_path, uploaded_at) VALUES (?, ?, ?, ?, ?, NOW())");
+    $stmt->bind_param("issss", $user_id, $title, $description, $dbPath, $thumbnailPath);
 
     if ($stmt->execute()) {
         $model_id = $stmt->insert_id;
@@ -93,7 +116,7 @@ if ($action === 'upload') {
         exit();
     }
 
-    $stmt = $conn->prepare("SELECT filepath FROM models WHERE id = ? AND user_id = ?");
+    $stmt = $conn->prepare("SELECT filepath, thumbnail_path FROM models WHERE id = ? AND user_id = ?");
     $stmt->bind_param("ii", $model_id, $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -114,6 +137,15 @@ if ($action === 'upload') {
         if (file_exists($physicalPath)) {
             unlink($physicalPath);
         }
+        
+        // Delete thumbnail if exists
+        if (!empty($model['thumbnail_path'])) {
+            $thumbPath = '../' . $model['thumbnail_path'];
+            if (file_exists($thumbPath)) {
+                unlink($thumbPath);
+            }
+        }
+        
         echo json_encode(['success' => true, 'message' => 'Model deleted successfully']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Failed to delete model']);

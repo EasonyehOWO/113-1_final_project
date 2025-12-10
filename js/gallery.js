@@ -80,15 +80,8 @@ function loadPreview(container, filepath) {
             model3d.position.sub(center.multiplyScalar(scale)); // Center it
 
             scene.add(model3d);
-
-            // Hide spinner
-            const spinner = container.querySelector('.loading-spinner');
-            if (spinner) spinner.style.display = 'none';
-
         }, undefined, (err) => {
             console.error("Failed to load model", err);
-            const spinner = container.querySelector('.loading-spinner');
-            if (spinner) spinner.style.borderTopColor = 'red';
         });
     } else {
         console.warn('Unsupported file type for preview:', ext);
