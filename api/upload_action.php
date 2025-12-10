@@ -13,6 +13,14 @@ $action = $_POST['action'] ?? '';
 
 
 if ($action === 'upload') {
+    // sample upload usage:
+    // <form id="uploadForm" enctype="multipart/form-data">
+    //     <input type="hidden" name="action" value="upload">
+    //     <input type="text" name="title" placeholder="Model Title" required>
+    //     <textarea name="description" placeholder="Description"></textarea>
+    //     <input type="file" name="model_file" accept=".glb" required>
+    //     <button type="submit">Upload</button>
+    // </form>
 
     if (!isset($_FILES['model_file']) || $_FILES['model_file']['error'] !== UPLOAD_ERR_OK) {
         echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error']);
@@ -34,7 +42,8 @@ if ($action === 'upload') {
         exit();
     }
 
-    $allowedExtensions = ['glb', 'gltf', 'obj', 'fbx', 'stl'];
+    // $allowedExtensions = ['glb', 'gltf', 'obj', 'fbx', 'stl'];
+    $allowedExtensions = ['glb'];
     $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     
     if (!in_array($fileExtension, $allowedExtensions)) {
@@ -113,6 +122,15 @@ if ($action === 'upload') {
     $stmt->close();
 
 } elseif ($action === 'update') {
+    // sample update usage:
+    // <form id="updateForm">
+    //     <input type="hidden" name="action" value="update">
+    //     <input type="hidden" name="model_id" value="123">
+    //     <input type="text" name="title" placeholder="Model Title" required>
+    //     <textarea name="description" placeholder="Description"></textarea>
+    //     <button type="submit">Update Model</button>
+    // </form>
+
     $model_id = intval($_POST['model_id'] ?? 0);
     $title = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');

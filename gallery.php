@@ -74,7 +74,6 @@ $conn->close();
     <style>
         
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
     <div class="header">
@@ -158,7 +157,7 @@ $conn->close();
         <?php endif; ?>
     </div>
     
-    <script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
         const models = <?= json_encode($models) ?>;
     </script>
     <script src="js/gallery.js"></script>
