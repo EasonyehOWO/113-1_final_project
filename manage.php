@@ -31,44 +31,44 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理模型 - 3D 藝廊</title>
-    <link rel="stylesheet" href="assets/css/manage.css">
+    <link rel="stylesheet" href="assets/css/gallery_manage.css">
 </head>
 <body>
-    <div class="header">
+    <header>
         <div class="header-left">
             <div class="logo">3D 藝廊</div>
             <nav class="nav-links">
-                <a href="gallery.php">公開藝廊</a>
-                <a href="gallery.php?filter=my">我的模型</a>
-                <a href="viewer.php">裸眼 3D</a>
-                <a href="manage.php" class="active">管理模型</a>
+                <a href="gallery.php" class="immersive">公開藝廊</a>
+                <a href="gallery.php?filter=my" class="immersive">我的模型</a>
+                <a href="viewer.php" class="immersive">裸眼 3D</a>
+                <a href="manage.php" class="immersive active">管理模型</a>
             </nav>
         </div>
         <div class="header-right">
             <span class="username"><?= htmlspecialchars($username) ?></span>
-            <a href="logout.php" class="logout-btn">登出</a>
+            <a href="logout.php" class="logout-btn raised">登出</a>
         </div>
-    </div>
+    </header>
 
-    <div class="container">
-        <div class="page-header">
+    <main class="container">
+        <section class="page-header">
             <h1>管理我的模型</h1>
             <p>上傳新的 3D 模型或管理現有的模型</p>
-        </div>
+        </section>
 
         <div id="message-container"></div>
 
-        <div class="upload-section">
+        <section class="upload-section">
             <h2>上傳新模型</h2>
             <form id="uploadForm" class="upload-form" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="title">標題 *</label>
-                    <input type="text" id="title" name="title" required placeholder="輸入模型標題">
+                    <input type="text" id="title" name="title" required placeholder="輸入模型標題" class="raised">
                 </div>
 
                 <div class="form-group">
                     <label for="description">說明</label>
-                    <textarea id="description" name="description" placeholder="輸入模型說明 (選填)"></textarea>
+                    <textarea id="description" name="description" placeholder="輸入模型說明 (選填)" class="raised"></textarea>
                 </div>
 
                 <div class="form-group">
@@ -96,12 +96,12 @@ $conn->close();
                     </div>
                 </div>
 
-                <button type="submit" class="submit-btn" id="uploadBtn">上傳模型</button>
+                <button type="submit" class="submit-btn raised" id="uploadBtn">上傳模型</button>
             </form>
             <div class="loading" id="uploadLoading">上傳中...</div>
-        </div>
+        </section>
 
-        <div class="models-section">
+        <section class="models-section">
             <h2>我的模型 (<?= count($models) ?>)</h2>
             
             <?php if (empty($models)): ?>
@@ -122,31 +122,31 @@ $conn->close();
                                     </div>
                                 </div>
                                 <div class="model-item-actions">
-                                    <button class="btn-edit" onclick="editModel(<?= $model['id'] ?>)">編輯</button>
-                                    <button class="btn-delete" onclick="deleteModel(<?= $model['id'] ?>, '<?= htmlspecialchars($model['title'], ENT_QUOTES) ?>')">刪除</button>
+                                    <button class="btn-edit raised" onclick="editModel(<?= $model['id'] ?>)">編輯</button>
+                                    <button class="btn-delete raised" onclick="deleteModel(<?= $model['id'] ?>, '<?= htmlspecialchars($model['title'], ENT_QUOTES) ?>')">刪除</button>
                                 </div>
                             </div>
                             
                             <form class="edit-form" id="edit-form-<?= $model['id'] ?>">
                                 <div class="form-group">
                                     <label>標題 *</label>
-                                    <input type="text" name="title" value="<?= htmlspecialchars($model['title']) ?>" required>
+                                    <input type="text" name="title" value="<?= htmlspecialchars($model['title']) ?>" required class="raised">
                                 </div>
                                 <div class="form-group">
                                     <label>說明</label>
-                                    <textarea name="description"><?= htmlspecialchars($model['description']) ?></textarea>
+                                    <textarea name="description" class="raised"><?= htmlspecialchars($model['description']) ?></textarea>
                                 </div>
                                 <div class="model-item-actions">
-                                    <button type="button" class="btn-save" onclick="saveModel(<?= $model['id'] ?>)">儲存變更</button>
-                                    <button type="button" class="btn-cancel" onclick="cancelEdit(<?= $model['id'] ?>)">取消</button>
+                                    <button type="button" class="btn-save raised" onclick="saveModel(<?= $model['id'] ?>)">儲存變更</button>
+                                    <button type="button" class="btn-cancel raised" onclick="cancelEdit(<?= $model['id'] ?>)">取消</button>
                                 </div>
                             </form>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <!-- 引入函式庫 (Import Map) -->
     <script type="importmap">

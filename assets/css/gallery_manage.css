@@ -1,0 +1,422 @@
+@import "./style.css" layer(general);
+
+/* Page Specific Background */
+body {
+    background: var(--theme-gradient);
+    padding: 0; /* Override generic body padding if any */
+}
+
+/* Layout Definitions */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--gap-lg);
+}
+
+/* Header (in addition to semantic <header>) */
+header {
+    gap: var(--gap-md);
+
+    background: var(--bg-color);
+    box-shadow: var(--shadow-sm);
+    padding: var(--gap-sm) var(--gap-md);
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+
+    top: 0;
+    z-index: 100;
+    text-wrap: nowrap;
+}
+
+.header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.header-left {
+    overflow: auto;
+
+    /* a trick to hide scrollbar in chrome */
+    &:not(:hover):not(:focus-within) {
+        overflow: hidden;
+    }
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--theme-color);
+    padding: 0 var(--gap-sm);
+}
+
+.nav-links {
+    display: flex;
+    gap: var(--gap-sm);
+    align-items: center;
+}
+
+.nav-links a {
+    font-weight: 500;
+    padding: var(--gap-md) var(--gap-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+    background: var(--theme-color);
+    color: var(--color-on-theme-color);
+}
+
+.logout-btn {
+    background: var(--error-border);
+    color: var(--error-bg);
+
+    &:hover {
+        filter: var(--dim-filter);
+    }
+}
+
+/* Common Card & Section Styles */
+.card, .model-card, .upload-section, .page-header, .models-section, .empty-state, .filter-bar {
+    background: var(--bg-color);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: var(--gap-lg);
+}
+
+/* Filter Bar */
+.filter-bar {
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: var(--gap-md);
+}
+
+.filter-tab {
+    padding: 0.75rem 1.5rem;
+    background: #f5f5f5;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition: all var(--animation-duration);
+}
+
+.filter-tab:hover {
+    background: #e0e0e0;
+}
+
+.filter-tab.active {
+    background: var(--theme-color);
+    color: var(--color-on-theme-color);
+}
+
+.model-count {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+/* Gallery Grid */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.model-card {
+    transition: all var(--animation-duration);
+    cursor: pointer;
+}
+
+.model-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.model-preview {
+    width: 100%;
+    height: 250px;
+    background: #f5f5f5;
+    position: relative;
+    overflow: hidden;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.no-thumbnail {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.model-preview:hover .no-thumbnail {
+    display: none;
+}
+
+.model-info {
+    padding: 1.5rem;
+}
+
+.model-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.model-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.model-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.model-author {
+    font-weight: 500;
+    color: var(--theme-color);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 3rem;
+}
+
+.page-btn {
+    background: var(--bg-color);
+    color: var(--theme-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.page-btn:hover {
+    background: var(--theme-color);
+    color: var(--color-on-theme-color);
+}
+
+.page-btn.active {
+    background: var(--theme-color);
+    color: var(--color-on-theme-color);
+}
+
+.page-btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Manage Page Specifics */
+.page-header {
+    padding: 2rem;
+}
+
+.page-header h1 {
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.page-header p {
+    color: var(--text-secondary);
+}
+
+.upload-section, .models-section {
+    padding: 2rem;
+}
+
+.upload-section h2, .models-section h2 {
+    color: var(--text-main);
+    margin-bottom: 1.5rem;
+}
+
+.upload-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    color: var(--text-main);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.file-input-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.file-input-wrapper input[type="file"] {
+    display: none;
+}
+
+.file-input-label {
+    display: block;
+    padding: 0.75rem;
+    background: #f5f5f5;
+    border: 2px dashed #ccc;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--animation-duration);
+}
+
+.file-input-label:hover {
+    background: #e8e8e8;
+    border-color: var(--theme-color);
+}
+
+.file-input-label.has-file {
+    background: var(--success-bg);
+    border-color: var(--success-border);
+    color: var(--success-color);
+}
+
+.submit-btn {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+/* Models List (Manage) */
+.models-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.model-item {
+    border: 2px solid #e0e0e0;
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    transition: border-color var(--animation-duration);
+}
+
+.model-item:hover {
+    border-color: var(--theme-color);
+}
+
+.model-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+.model-item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+
+
+
+/* ... existing code ... */
+
+/* Action Buttons */
+.btn-edit, .btn-delete, .btn-save, .btn-cancel {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--animation-duration);
+}
+
+/* Edit: Use Default Theme Color (inherit logic or explicit) */
+.btn-delete { background: var(--error-border); color: white; }
+.btn-delete:hover {filter: var(--dim-filter); }
+
+.btn-save { background: var(--success-border); color: white; }
+.btn-save:hover { filter: var(--dim-filter); }
+
+.edit-form {
+    display: none;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid #e0e0e0;
+}
+
+.edit-form.active {
+    display: grid;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-state h2, .empty-state h3 {
+    margin-bottom: 1rem;
+    color: var(--text-main);
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+
+/* Loading & Messages */
+.loading {
+    display: none;
+    text-align: center;
+    padding: 1rem;
+    color: var(--theme-color);
+    font-weight: 500;
+}
+.loading.active { display: block; }
+
+.message {
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+.message.success {
+    background: var(--success-bg);
+    color: var(--success-color);
+    border: 1px solid var(--success-border);
+}
+.message.error {
+    background: var(--error-bg);
+    color: var(--error-color);
+    border: 1px solid var(--error-border);
+}

@@ -3,40 +3,58 @@
 }
 
 html {
-    /* color picker: #feb41f, https://m2.material.io/design/color/the-color-system.html#tools-for-picking-colors */
-    --color-scheme: light;
-    --color: black;
-    --dim-color: color-mix(in srgb, var(--color) 50%, transparent 50%);
-    --theme-color: #feb41f;
-    --bg-color: #b9dcff; /* Complementary, 100 */
+    /* Theme Variables - Blue/Purple Gradient Theme */
+    --theme-color: hsl(229, 76%, 66%);
+    --theme-secondary-color: hsl(229, 76%, 55%);
+    --theme-gradient: linear-gradient(135deg, hsl(229, 76%, 66%) 0%, hsl(270, 37%, 46%) 100%);
+    --color-on-theme-color: #fff;
+    
+    --bg-color: white;
+    --text-main: #333;
+    --text-secondary: #666;
+    --text-light: #999;
+    
+    --success-color: #2e7d32;
+    --success-bg: #e8f5e9;
+    --success-border: #4caf50;
+    
+    --error-color: #c62828;
+    --error-bg: #ffebee;
+    --error-border: #f44336;
 
-    --error-color: white;
-    --error-bg-color: red;
+    --dim-filter: brightness(0.9);
 
-    --block-bg: rgba(255, 255, 255, 0.5);
-    --dim-block-bg: rgba(255, 255, 255, 0.25);
+    /* For unstyled buttons etc. */
+    --block-bg: var(--bg-color);
+    --dim-block-bg: color-mix(in srgb, var(--bg-color) 90%, black);
+    
+    /* Shadows */
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --shadow-sm: 0 2px 4px var(--shadow-color);
+    --shadow: 0 4px 6px var(--shadow-color); /* Mapping old --shadow to this roughly or keeping distinct? Let's map to standard sizes */
+    --shadow-md: 0 4px 6px var(--shadow-color);
+    --shadow-lg: 0 8px 15px rgba(0,0,0,0.2);
+    --shadow-hover: 0 8px 15px rgba(0,0,0,0.2); /* Mapping old --shadow-hover */
 
-    --success-color: white;
-    --success-bg-color: green;
-
-    color: var(--color);
-    background-color: var(--bg-color);
-    color-scheme: var(--color-scheme);
-    accent-color: var(--theme-color);
-
-    --shadow-color: rgba(0, 0, 0, 0.3);
-    --shadow: 0.1rem 0.1rem 0.2rem var(--shadow-color);
-    --shadow-hover: 0.2rem 0.2rem 0.4rem var(--shadow-color);
-
-    --animation-duration: 0.125s;
-    --gap-and-radius: 0.5rem;
-    --big-gap-and-radius: calc(2 * var(--gap-and-radius));
+    /* Dimensions */
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    
+    --gap-sm: 0.5rem;
+    --gap-md: 1rem;
+    --gap-lg: 2rem;
+    
+    --animation-duration: 0.3s;
 }
 
 body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 0;
     min-height: 100vh;
+    color: var(--text-main);
+    line-height: 1.6;
 }
 
 a.raised,
@@ -44,13 +62,18 @@ input.raised,
 button.raised,
 textarea.raised {
     border: none;
-    border-radius: var(--gap-and-radius);
-    padding: var(--gap-and-radius);
+    border-radius: var(--radius-sm);
+    padding: var(--gap-sm);
     box-shadow: var(--shadow);
-    transition: box-shadow var(--animation-duration) ease-in-out;
+    transition: 
+        box-shadow var(--animation-duration) ease-in-out,
+        background-color var(--animation-duration),
+        filter var(--animation-duration); 
+        /* thou filter is not used here, it's convenient for changed background in :hover*/
 
     margin: 0;
     font-size: inherit;
+    background-color: var(--block-bg);
 
     &:is(a) {
         display: inline-block;
@@ -58,8 +81,9 @@ textarea.raised {
     }
 
     &:is(:hover, :focus-within) {
-        &:not(:active) {
+        &:not(a:active, button:active) {
             box-shadow: var(--shadow-hover);
+            background-color: var(--dim-block-bg);
         }
     }
 }
@@ -76,7 +100,7 @@ textarea.immersive {
     padding: 0;
 
     margin: 0;
-    transition: background-color var(--animation-duration);
+    transition: background-color var(--animation-duration), filter var(--animation-duration);
 
     &:is(a) {
         text-decoration: none;
@@ -94,7 +118,7 @@ textarea.immersive {
 dialog {
     /* assume there is a direct child, .modal-content */
     border: none;
-    border-radius: var(--gap-and-radius);
+    border-radius: var(--radius-sm);
     padding: 0;
     background: transparent;
     box-shadow: var(--shadow);
@@ -103,10 +127,10 @@ dialog {
 
     & .modal-content {
         background: var(--block-bg);
-        padding: var(--big-gap-and-radius);
+        padding: var(--gap-md);
         display: flex;
         flex-direction: column;
-        gap: var(--gap-and-radius);
+        gap: var(--gap-sm);
 
         backdrop-filter: blur(0.5rem);
     }
