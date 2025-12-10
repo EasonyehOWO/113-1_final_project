@@ -9,7 +9,7 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_once 'db_connect.php';
+    require_once '../config/db_connect.php';
     
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
