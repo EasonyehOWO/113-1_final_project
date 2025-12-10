@@ -9,7 +9,7 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_once 'db_connect.php';
+    require_once '../config/db_connect.php';
     
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
@@ -36,9 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt->execute()) {
                 $new_user_id = $conn->insert_id;
 
-                $stmt = $conn->prepare("INSERT INTO categories (user_id, name) VALUES (?, 'none')");
-                $stmt->bind_param("i", $new_user_id);
-                $stmt->execute();
+                // $stmt = $conn->prepare("INSERT INTO categories (user_id, name) VALUES (?, 'none')");
+                // $stmt->bind_param("i", $new_user_id);
+                // $stmt->execute();
                 
                 $success = '註冊成功！現在你可以準備潛行了';
             } else {

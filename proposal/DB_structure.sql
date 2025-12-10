@@ -1,6 +1,14 @@
+---- 冪等腳本式初始化（舊資料會被 drop table 掉）
+---- 可以透過 `sudo mysql < DB_structure.sql` 來匯入
 -- 建立資料庫
 CREATE DATABASE IF NOT EXISTS `cg_final_project` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `cg_final_project`;
+
+CREATE USER IF NOT EXISTS 'cg_final_project'@'localhost' IDENTIFIED BY '114DWP2025';
+GRANT ALL PRIVILEGES ON `cg_final_project`.* TO 'cg_final_project'@'localhost';
+FLUSH PRIVILEGES;
+
+DROP TABLE IF EXISTS `models`, `users`;
 
 -- 1. 使用者資料表 (Users)
 CREATE TABLE `users` (
