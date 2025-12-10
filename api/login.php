@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Prevent Resize -->
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>登入</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../assets/css/login_register.css">
 </head>
 <body>
     <div class="container">
@@ -47,14 +47,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
             <form method="POST">
                 <div class="form-group username">
-                    <label>使用者名稱：</label>
-                    <input type="text" name="username" required>
+                    <label for="username">使用者名稱：</label>
+                    <input type="text" id="username" name="username" required class="raised">
                 </div>
                 <div class="form-group password">
-                    <label>密碼：</label>
-                    <input type="password" name="password" required>
+                    <label for="password">密碼：</label>
+                    <input type="password" id="password" name="password" required class="raised">
                 </div>
-                <button type="submit" class="btn">[Link Start]</button>
+                <button type="submit" class="raised">[Link Start]</button>
             </form>
             <p class="switch-link">還沒有帳號嗎？ <a href="register.php">註冊</a></p>
         </div>
