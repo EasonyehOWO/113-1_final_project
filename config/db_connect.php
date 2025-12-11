@@ -1,6 +1,6 @@
 <?php
 $host = 'localhost';
-$dbname = 'cg_final_project';
+$dbname = 'CVML';
 $username = 'CVML';
 $password = '114DWP2025';
 
