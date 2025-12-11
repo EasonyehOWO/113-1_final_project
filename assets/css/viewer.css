@@ -41,3 +41,111 @@ body {
     transform: scaleX(-1); /* 鏡像翻轉 */
     z-index: 10;
 }
+
+/* -----------------------------
+   Settings Panel Styling
+   ----------------------------- */
+.settings-panel {
+    width: 300px;
+    background-color: rgba(0, 0, 0, 0.4); 
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    transition: opacity 0.3s ease, background-color 0.3s ease;
+    opacity: var(--panel-idle-opacity, 0.6); /* 預設半透明，可透過 JS 調整 */
+    overflow: hidden;
+}
+
+.settings-panel:hover {
+    opacity: 1.0;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.settings-panel summary {
+    padding: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    list-style: none; /* 隱藏預設箭頭 */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 自訂箭頭 */
+.settings-panel summary::after {
+    content: '▼';
+    font-size: 0.8em;
+    transition: transform 0.2s;
+}
+
+.settings-panel[open] summary::after {
+    transform: rotate(180deg);
+}
+
+.panel-content {
+    padding: 15px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.control-group {
+    margin-bottom: 12px;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.9em;
+    color: #ddd;
+}
+
+.control-group input[type="range"],
+.control-group select {
+    width: 100%;
+    margin-top: 2px;
+}
+
+.control-group input[type="range"] {
+    accent-color: #00bcd4; /* Theme color */
+    cursor: pointer;
+}
+
+.control-group select {
+    background: #333;
+    color: white;
+    border: 1px solid #555;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    margin: 15px 0;
+}
+
+.btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+}

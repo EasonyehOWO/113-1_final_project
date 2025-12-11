@@ -2,14 +2,32 @@
 // viewer.php
 session_start();
 
-// 1. 檢查是否登入 (銜接組員 B 的功能)
+// 1. 檢查是否登入
 if (!isset($_SESSION['user_id'])) {
-    // header("Location: index.php"); // 如果未登入就踢回首頁，開發時可先註解掉方便測試
+    // header("Location: index.php"); 
     // exit();
 }
 
-// 2. 模擬從資料庫抓到的模型路徑 (之後由組員 B 換成真實資料庫查詢)
-$modelPath = isset($_GET['model']) ? $_GET['model'] : 'assets/models/default_cube.gltf';
+require_once 'config/db_connect.php';
+
+$modelPath = 'assets/models/default_cube.gltf'; // Default
+$modelTitle = 'Unknown Model';
+
+// 2. 獲取模型路徑
+if (isset($_GET['id'])) {
+    $model_id = intval($_GET['id']);
+    if ($model_id > 0) {
+        $stmt = $conn->prepare("SELECT title, filepath FROM models WHERE id = ?");
+        $stmt->bind_param("i", $model_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $modelPath = $row['filepath']; // e.g. "uploads/model_xyz.glb"
+            $modelTitle = htmlspecialchars($row['title']);
+        }
+        $stmt->close();
+    }
+}
 ?>
 
 <!DOCTYPE html>
