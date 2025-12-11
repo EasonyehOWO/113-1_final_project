@@ -48,6 +48,13 @@ export const GraphicsApp = {
     targetCamPos: new THREE.Vector3(0, 0, 5),
     targetCamRotZ: 0,
     
+    // Manual Controls (Keyboard)
+    keyboardState: {},
+    manualPos: new THREE.Vector3(0, 0, 0),
+    manualRot: new THREE.Vector3(0, 0, 0),
+    MANUAL_SPEED: 0.1,
+    MANUAL_ROT_SPEED: 0.02,
+
     // Constants
     FLOOR_Y: -4,
     WALL_Z: -8,
@@ -60,7 +67,16 @@ export const GraphicsApp = {
         this.scene.background = new THREE.Color(0x000000);
         this.scene.fog = new THREE.Fog(0x000000, 5, 20);
 
-        // 2. Camera
+        // --- World Hierarchy Setup (Inverse Transform) ---
+        // Scene -> RotGroup (Simulate Head Rotation) -> TransGroup (Simulate Walking) -> Objects
+        this.rotGroup = new THREE.Group();
+        this.transGroup = new THREE.Group();
+        
+        this.rotGroup.add(this.transGroup);
+        this.scene.add(this.rotGroup);
+        // -------------------------------------------------
+
+        // 2. Camera (Tracks Physical Head Only)
         this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.z = 5;
         this.targetCamPos.copy(this.camera.position);
@@ -68,39 +84,51 @@ export const GraphicsApp = {
         // 3. Renderer
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        // Lower resolution for performance (User Request)
         this.renderer.setPixelRatio(0.5); 
         container.appendChild(this.renderer.domElement);
 
         // 4. Raycaster
         this.raycaster = new THREE.Raycaster();
 
-        // 5. Build Scene Environment (Grids, Walls)
+        // 5. Build Environment (Add to TransGroup)
         this.buildEnvironment();
 
-        // 6. Load Placeholder or Target Model
+        // 6. Load Model (Add to TransGroup)
         this.loadModel();
 
         // 7. Event Listeners
         window.addEventListener('resize', () => this.onWindowResize(), false);
+        window.addEventListener('keydown', (e) => this.onKeyDown(e), false);
+        window.addEventListener('keyup', (e) => this.onKeyUp(e), false);
 
         // 8. Start Loop
         this.animate();
-        console.log("GraphicsApp Initialized (Off-axis Projection Ready).");
+        console.log("GraphicsApp Initialized (World-Move Mode).");
     },
+
+    onKeyDown: function(event) {
+        this.keyboardState[event.key.toLowerCase()] = true;
+        this.keyboardState[event.code] = true; // Support Arrow keys
+    },
+
+    onKeyUp: function(event) {
+        this.keyboardState[event.key.toLowerCase()] = false;
+        this.keyboardState[event.code] = false;
+    },
+
 
     buildEnvironment: function() {
         // Floor Grid
         this.floorGrid = new THREE.GridHelper(20, 20, 0x00ffff, 0x444444);
         this.floorGrid.position.y = this.FLOOR_Y;
-        this.scene.add(this.floorGrid);
+        this.transGroup.add(this.floorGrid);
 
-        // Back Wall Grid
-        this.backWallGrid = new THREE.GridHelper(20, 20, 0xff00ff, 0x444444);
-        this.backWallGrid.position.z = this.WALL_Z;
-        this.backWallGrid.position.y = 6;
-        this.backWallGrid.rotation.x = Math.PI / 2;
-        this.scene.add(this.backWallGrid);
+        // Wall Grid (Back)
+        this.wallGrid = new THREE.GridHelper(20, 20, 0xff00ff, 0x444444);
+        this.wallGrid.rotation.x = Math.PI / 2;
+        this.wallGrid.position.z = this.WALL_Z;
+        this.wallGrid.position.y = 0;
+        this.transGroup.add(this.wallGrid);
 
         // Invisible Raycast Planes
         const floorPlaneGeo = new THREE.PlaneGeometry(20, 20);
@@ -108,13 +136,15 @@ export const GraphicsApp = {
         const floorPlane = new THREE.Mesh(floorPlaneGeo, floorPlaneMat);
         floorPlane.position.y = this.FLOOR_Y;
         floorPlane.rotation.x = -Math.PI / 2;
-        this.scene.add(floorPlane);
+        this.transGroup.add(floorPlane);
 
         const backWallPlaneGeo = new THREE.PlaneGeometry(20, 20);
         const backWallPlane = new THREE.Mesh(backWallPlaneGeo, floorPlaneMat);
         backWallPlane.position.z = this.WALL_Z;
-        backWallPlane.position.y = this.backWallGrid.position.y;
-        this.scene.add(backWallPlane);
+        backWallPlane.position.y = this.wallGrid.position.y; 
+        this.transGroup.add(backWallPlane);
+
+
 
         this.raycastTargets = [floorPlane, backWallPlane];
 
@@ -162,7 +192,7 @@ export const GraphicsApp = {
         this.loader.load(url, (gltf) => {
             // 1. Remove old model if exists
             if (this.currentModel) {
-                this.scene.remove(this.currentModel);
+                this.transGroup.remove(this.currentModel); // Remove from TransGroup
                 // Traverse and dispose geometry/material to avoid leak?
                 this.currentModel.traverse((child) => {
                     if (child.isMesh) {
@@ -199,7 +229,7 @@ export const GraphicsApp = {
                 }
             });
 
-            this.scene.add(this.currentModel);
+            this.transGroup.add(this.currentModel); // Add to TransGroup
             
             // 3. Auto-scale and center
             const box = new THREE.Box3().setFromObject(this.currentModel);
@@ -231,7 +261,7 @@ export const GraphicsApp = {
         const geometry = new THREE.BoxGeometry(2, 2, 2);
         const material = new THREE.MeshNormalMaterial();
         this.currentModel = new THREE.Mesh(geometry, material);
-        this.scene.add(this.currentModel);
+        this.transGroup.add(this.currentModel); // Add to TransGroup
     },
 
     setupDragAndDrop: function() {
@@ -296,59 +326,106 @@ export const GraphicsApp = {
 
     animate: function() {
         requestAnimationFrame(() => this.animate());
-
         if (!this.camera || !this.renderer) return;
 
-        // 1. Smooth Camera Movement
+        // --- Keyboard Controls (Update Manual State) ---
+        
+        // 1. Calculate Vectors based on Manual Yaw (Y-rotation)
+        const yaw = this.manualRot.y;
+        
+        // Fixed Math: Rotate (0,0,-1) by Yaw
+        // x = -sin(yaw), z = -cos(yaw)
+        const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+        
+        // Fixed Math: Rotate (1,0,0) by Yaw
+        // x = cos(yaw), z = -sin(yaw)
+        const moveRight = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)); 
+
+        // 2. Translation
+        if (this.keyboardState['w']) this.manualPos.addScaledVector(forward, this.MANUAL_SPEED);
+        if (this.keyboardState['s']) this.manualPos.addScaledVector(forward, -this.MANUAL_SPEED);
+        if (this.keyboardState['a']) this.manualPos.addScaledVector(moveRight, -this.MANUAL_SPEED);
+        if (this.keyboardState['d']) this.manualPos.addScaledVector(moveRight, this.MANUAL_SPEED);
+        
+        if (this.keyboardState['t']) this.manualPos.y += this.MANUAL_SPEED;
+        if (this.keyboardState['b']) this.manualPos.y -= this.MANUAL_SPEED;
+
+        if (this.keyboardState['ArrowUp'])    this.manualRot.x += this.MANUAL_ROT_SPEED;
+        if (this.keyboardState['ArrowDown'])  this.manualRot.x -= this.MANUAL_ROT_SPEED;
+        if (this.keyboardState['ArrowLeft'])  this.manualRot.y += this.MANUAL_ROT_SPEED;
+        if (this.keyboardState['ArrowRight']) this.manualRot.y -= this.MANUAL_ROT_SPEED;
+
+        // Resets
+        if (this.keyboardState['i']) this.manualPos.y = 0;
+        if (this.keyboardState['o']) { this.manualPos.x = 0; this.manualPos.z = 0; }
+        if (this.keyboardState['0']) this.manualRot.set(0, 0, 0);
+
+        // --- Apply Inverse Transforms to World ---
+        
+        // 1. Pivot Adjustment: Move RotGroup to Camera Z-Plane
+        const PIVOT_Z = 5.0; // Matches Camera Base Z
+        this.rotGroup.position.set(0, 0, PIVOT_Z);
+
+        // 2. Rotation Group: Inverse of Player Rotation
+        this.rotGroup.rotation.y = -this.manualRot.y;
+        this.rotGroup.rotation.x = -this.manualRot.x;
+        
+        // 3. Translation Group: Inverse of (Player Position + Pivot Compensate)
+        // We move the world back by PIVOT_Z so that (0,0,0) is at the Pivot
+        this.transGroup.position.x = -this.manualPos.x;
+        this.transGroup.position.y = -this.manualPos.y;
+        this.transGroup.position.z = -this.manualPos.z - PIVOT_Z;
+        // -----------------------------------------
+
+        // 3. Face Tracking Update (Physical Camera Move)
         const lerpFactor = 0.1;
         this.camera.position.lerp(this.targetCamPos, lerpFactor);
         
-        // Simple lerp for rotation since it's just Z
-        this.camera.rotation.z += (this.targetCamRotZ - this.camera.rotation.z) * lerpFactor;
+        // Camera Rotation is ALWAYS 0 (Perpendicular to Screen) for Off-axis
+        this.camera.rotation.set(0, 0, 0);
 
-        // 2. Off-axis Projection Logic
+        // 4. Off-axis Projection Logic (Standard)
         const convergence = this.settings.convergence;
-        
-        // ... (existing projection logic) ...
-        
-        // Update Shader Uniforms if model exists
-        if (this.currentModel) {
-            this.currentModel.traverse((child) => {
-                if (child.isMesh && child.material.uniforms) {
-                    // Update View Position (Camera relative to Model)
-                    child.material.uniforms.uViewPos.value.copy(this.camera.position);
-                    
-                    // Optional: Make light follow camera or static
-                    // child.material.uniforms.uLightPos.value.copy(this.camera.position); 
-                }
-            });
-        }
-
-        // Look At Check
-        const lookAtX = this.camera.position.x * (1.0 - convergence);
-        const lookAtY = this.camera.position.y * (1.0 - convergence);
-        this.camera.lookAt(lookAtX, lookAtY, 0);
-
-        // Frustum Shift
         const frustumShift = (1.0 - convergence);
+        // ... Projection math uses this.camera.position (Head Tracking) ...
+        // ... Re-use existing frustum shift code ...
+        
         const near = this.camera.near;
         const far = this.camera.far;
         const top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * this.camera.fov);
         const bottom = -top;
         const right = top * this.camera.aspect;
         const left = -right;
-        const z = Math.max(0.1, this.camera.position.z);
+        const z = Math.max(0.1, this.camera.position.z); // Z is distance to screen
         
         const shiftX = (this.camera.position.x / z) * near * frustumShift;
         const shiftY = (this.camera.position.y / z) * near * frustumShift;
 
-        const newLeft = left - shiftX;
-        const newRight = right - shiftX;
-        const newTop = top - shiftY;
-        const newBottom = bottom - shiftY;
+        this.camera.projectionMatrix.makePerspective(
+            left - shiftX, right - shiftX, 
+            top - shiftY, bottom - shiftY, 
+            near, far
+        );
 
-        this.camera.projectionMatrix.makePerspective(newLeft, newRight, newTop, newBottom, near, far);
-
+        // 5. Update Shader Uniforms
+        if (this.currentModel) {
+            this.currentModel.traverse((child) => {
+                if (child.isMesh && child.material.uniforms) {
+                     // Since World rotates, we must transform Camera Pos into World Space for correct Specular?
+                     // Or just use World Space Camera Pos? 
+                     // Shader works in World Space? vertexShader uses modelViewMatrix.
+                     // viewPos should be in World Space.
+                     // Camera is at (HeadX, HeadY, HeadZ).
+                     // Objects are transformed.
+                     // Actually, Three.js shaders expect View Pos in World Space.
+                     // Our visual "World Space" is the rotated one.
+                     // The Camera is physically at (HeadX...).
+                     // So we just pass the Camera Position.
+                     child.material.uniforms.uViewPos.value.copy(this.camera.position);
+                }
+            });
+        }
+        
         // 3. Raycasting & Crosshair
         if (this.settings.showCrosshair) {
             this.updateCrosshair();
