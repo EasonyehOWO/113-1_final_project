@@ -140,14 +140,106 @@ export const GraphicsApp = {
     },
 
     loadModel: function() {
-        // Use a standard BoxGeometry to avoid asset issues and ensure clean lines
+        // Init Loader
+        this.loader = new GLTFLoader();
+        
+        // Initial Load (from PHP variable)
+        if (typeof TARGET_MODEL_PATH !== 'undefined' && TARGET_MODEL_PATH) {
+            console.log("Loading initial model:", TARGET_MODEL_PATH);
+            this.loadGLTF(TARGET_MODEL_PATH);
+        } else {
+            console.warn("No TARGET_MODEL_PATH defined.");
+        }
+
+        // Setup Drag & Drop
+        this.setupDragAndDrop();
+    },
+
+    loadGLTF: function(url) {
+        // Show loading indicator if we had one
+        console.log(`Loading GLTF: ${url}`);
+
+        this.loader.load(url, (gltf) => {
+            // 1. Remove old model if exists
+            if (this.currentModel) {
+                this.scene.remove(this.currentModel);
+                // Traverse and dispose geometry/material to avoid leak?
+                this.currentModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.geometry.dispose();
+                        if (child.material) child.material.dispose();
+                    }
+                });
+            }
+
+            // 2. Add new model
+            this.currentModel = gltf.scene;
+            this.scene.add(this.currentModel);
+            
+            // 3. Auto-scale and center
+            const box = new THREE.Box3().setFromObject(this.currentModel);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            // Normalize size to fit in a 4x4x4 box approx
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = 4.0 / maxDim;
+            this.currentModel.scale.setScalar(scale);
+
+            // Re-center
+            this.currentModel.position.x = -center.x * scale;
+            this.currentModel.position.y = -center.y * scale;
+            this.currentModel.position.z = -center.z * scale;
+
+            console.log("Model loaded and scaled.", { size, scale });
+
+        }, (xhr) => {
+            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        }, (error) => {
+            console.error('An error happened loading GLTF:', error);
+            // Fallback to Cube if error
+            if (!this.currentModel) this.addFallbackCube();
+        });
+    },
+
+    addFallbackCube: function() {
         const geometry = new THREE.BoxGeometry(2, 2, 2);
-        // Use NormalMaterial to visualize orientation (like prototype)
         const material = new THREE.MeshNormalMaterial();
-        const cube = new THREE.Mesh(geometry, material);
-        cube.position.set(0, 0, 0);
-        this.scene.add(cube);
-        console.log("Standard Box Model added.");
+        this.currentModel = new THREE.Mesh(geometry, material);
+        this.scene.add(this.currentModel);
+    },
+
+    setupDragAndDrop: function() {
+        const container = document.body;
+
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Essential to allow drop
+            e.dataTransfer.dropEffect = 'copy';
+            container.style.opacity = '0.8'; // Visual cue
+        });
+
+        container.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            container.style.opacity = '1.0';
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            container.style.opacity = '1.0';
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                const filename = file.name.toLowerCase();
+                
+                if (filename.endsWith('.glb') || filename.endsWith('.gltf')) {
+                    const url = URL.createObjectURL(file);
+                    console.log("Dropped file:", filename);
+                    this.loadGLTF(url);
+                } else {
+                    alert("只支援 .glb 或 .gltf 格式");
+                }
+            }
+        });
     },
 
     updateHeadData: function(data) {
