@@ -1,6 +1,6 @@
-// js/graphics/scene_init.js
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { BlinnPhongShader } from './BlinnPhongShader.js';
 
 export const GraphicsApp = {
     scene: null,
@@ -174,6 +174,31 @@ export const GraphicsApp = {
 
             // 2. Add new model
             this.currentModel = gltf.scene;
+            
+            this.currentModel.traverse((child) => {
+                if (child.isMesh) {
+                    // Create a clone of the shader uniforms for this specific mesh
+                    const newUniforms = THREE.UniformsUtils.clone(BlinnPhongShader.uniforms);
+                    
+                    // 1. Preserve Texture if exists
+                    if (child.material.map) {
+                        newUniforms.uTexture.value = child.material.map;
+                        newUniforms.uHasTexture.value = true;
+                    } 
+                    // 2. Preserve Color if no texture but has base color (Simple approximation)
+                    else if (child.material.color) {
+                        newUniforms.uColor.value = child.material.color;
+                        newUniforms.uHasTexture.value = false;
+                    }
+
+                    child.material = new THREE.ShaderMaterial({
+                        uniforms: newUniforms,
+                        vertexShader: BlinnPhongShader.vertexShader,
+                        fragmentShader: BlinnPhongShader.fragmentShader
+                    });
+                }
+            });
+
             this.scene.add(this.currentModel);
             
             // 3. Auto-scale and center
@@ -284,6 +309,21 @@ export const GraphicsApp = {
         // 2. Off-axis Projection Logic
         const convergence = this.settings.convergence;
         
+        // ... (existing projection logic) ...
+        
+        // Update Shader Uniforms if model exists
+        if (this.currentModel) {
+            this.currentModel.traverse((child) => {
+                if (child.isMesh && child.material.uniforms) {
+                    // Update View Position (Camera relative to Model)
+                    child.material.uniforms.uViewPos.value.copy(this.camera.position);
+                    
+                    // Optional: Make light follow camera or static
+                    // child.material.uniforms.uLightPos.value.copy(this.camera.position); 
+                }
+            });
+        }
+
         // Look At Check
         const lookAtX = this.camera.position.x * (1.0 - convergence);
         const lookAtY = this.camera.position.y * (1.0 - convergence);
