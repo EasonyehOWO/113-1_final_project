@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
     }
-    $error = 'Invalid username or password';
+    $error = '使用者名稱或密碼錯誤';
 }
 ?>
 
