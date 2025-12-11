@@ -15,9 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm_password'] ?? '';
     
-    if (strlen($username) < 3) {
+    if (strlen($username) <= 3) {
         $error = '你好短';
-    } elseif (strlen($password) < 4) {
+    } elseif (strlen($password) <= 4) {
         $error = '你的密碼好短';
     } elseif ($password !== $confirm) {
         $error = '確認密碼欄位不一致';
