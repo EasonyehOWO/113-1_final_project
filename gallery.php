@@ -80,7 +80,7 @@ $conn->close();
             <nav class="nav-links">
                 <a href="gallery.php" class="immersive <?= $filter === 'all' ? ' active' : '' ?>">公開藝廊</a>
                 <a href="gallery.php?filter=my" class="immersive <?= $filter === 'my' ? ' active' : '' ?>">我的模型</a>
-                <a href="viewer.php" class="immersive">裸眼 3D</a>
+                <a href="viewer.php" class="immersive">相機測試</a>
                 <a href="manage.php" class="immersive">管理模型</a>
             </nav>
         </div>

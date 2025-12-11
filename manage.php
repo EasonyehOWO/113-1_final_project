@@ -40,7 +40,7 @@ $conn->close();
             <nav class="nav-links">
                 <a href="gallery.php" class="immersive">公開藝廊</a>
                 <a href="gallery.php?filter=my" class="immersive">我的模型</a>
-                <a href="viewer.php" class="immersive">裸眼 3D</a>
+                <a href="viewer.php" class="immersive">相機測試</a>
                 <a href="manage.php" class="immersive active">管理模型</a>
             </nav>
         </div>
