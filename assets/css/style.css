@@ -6,7 +6,7 @@ html {
     /* Theme Variables - Blue/Purple Gradient Theme */
     --theme-color: hsl(229, 76%, 66%);
     --theme-secondary-color: hsl(229, 76%, 55%);
-    --theme-gradient: linear-gradient(135deg, hsl(229, 76%, 66%) 0%, hsl(270, 37%, 46%) 100%);
+    --theme-gradient: linear-gradient(135deg, hsl(270, 37%, 46%) 0%, hsl(229, 76%, 66%) 100%);
     --color-on-theme-color: #fff;
     
     --bg-color: white;
@@ -57,6 +57,7 @@ body {
     line-height: 1.6;
 }
 
+.btnlike.raised,
 a.raised,
 input.raised,
 button.raised,
@@ -75,8 +76,11 @@ textarea.raised {
     font-size: inherit;
     background-color: var(--block-bg);
 
-    &:is(a) {
+    &:is(a, .btnlike) {
         display: inline-block;
+    }
+
+    &:is(a) {
         text-decoration: none;
     }
 
@@ -88,6 +92,7 @@ textarea.raised {
     }
 }
 
+.btnlike.immersive,
 a.immersive,
 input.immersive,
 button.immersive,

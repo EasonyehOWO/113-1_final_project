@@ -93,7 +93,7 @@ header {
 
 /* Filter Bar */
 .filter-bar {
-    padding: 1rem 2rem;
+    padding: var(--gap-md) var(--gap-lg);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -434,7 +434,7 @@ header {
     display: flex;
     gap: 10px;
     flex: 1;
-    min-width: 300px;
+    min-width: min(100%, 300px);
 }
 
 .search-input {
@@ -444,6 +444,8 @@ header {
     border-radius: 8px;
     font-size: 16px;
     transition: border-color 0.3s;
+
+    width: 0;
 }
 
 .search-input:focus {
