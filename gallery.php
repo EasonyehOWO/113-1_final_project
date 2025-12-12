@@ -205,21 +205,21 @@ $conn->close();
             <?php if ($total_pages > 1): ?>
                 <nav class="pagination">
                     <?php if ($page > 1): ?>
-                        <a href="?filter=<?= $filter ?>&search=<?= urlencode($search) ?>&page=<?= $page - 1 ?>" class="page-btn">← 上一頁</a>
+                        <a href="?filter=<?= $filter ?>&search=<?= urlencode($search) ?>&page=<?= $page - 1 ?>" class="page-btn btnlike raised">← 上一頁</a>
                     <?php else: ?>
-                        <span class="page-btn disabled">← 上一頁</span>
+                        <a class="page-btn disabled btnlike raised">← 上一頁</a>
                     <?php endif; ?>
                     
                     <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                        <a href="?filter=<?= $filter ?>&search=<?= urlencode($search) ?>&page=<?= $i ?>" class="page-btn <?= $i === $page ? 'active' : '' ?>">
+                        <a href="?filter=<?= $filter ?>&search=<?= urlencode($search) ?>&page=<?= $i ?>" class="page-btn btnlike raised <?= $i === $page ? 'active' : '' ?>">
                             <?= $i ?>
                         </a>
                     <?php endfor; ?>
                     
                     <?php if ($page < $total_pages): ?>
-                        <a href="?filter=<?= $filter ?>&search=<?= urlencode($search) ?>&page=<?= $page + 1 ?>" class="page-btn">下一頁 →</a>
+                        <a href="?filter=<?= $filter ?>&search=<?= urlencode($search) ?>&page=<?= $page + 1 ?>" class="page-btn btnlike raised">下一頁 →</a>
                     <?php else: ?>
-                        <span class="page-btn disabled">下一頁 →</span>
+                        <a class="page-btn disabled btnlike raised">下一頁 →</a>
                     <?php endif; ?>
                 </nav>
             <?php endif; ?>
