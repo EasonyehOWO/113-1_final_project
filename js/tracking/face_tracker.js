@@ -23,6 +23,7 @@ export const FaceTracker = {
     init: async function(videoElementId) {
         this.videoElement = document.getElementById(videoElementId);
         this.statusElement = document.getElementById('tracking-status');
+        this.canvas = document.getElementById('tracking-canvas'); // Get Canvas
         
         // Setup Video Dimensions - sets the HTML attribute (display size)
         this.videoElement.width = this.displaySize.width;
@@ -60,21 +61,40 @@ export const FaceTracker = {
     },
 
     startDetectionLoop: async function() {
+        const ctx = this.canvas ? this.canvas.getContext('2d') : null;
+
         const loop = async () => {
             if (!this.videoElement.paused && !this.videoElement.ended) {
                 
+                // 1. Match Canvas to Video (Handling resize dynamically)
+                if (this.canvas && this.videoElement.videoWidth > 0) {
+                     if (this.canvas.width !== this.videoElement.videoWidth || this.canvas.height !== this.videoElement.videoHeight) {
+                         this.canvas.width = this.videoElement.videoWidth;
+                         this.canvas.height = this.videoElement.videoHeight;
+                     }
+                }
+
                 const detection = await faceapi.detectSingleFace(
                     this.videoElement, 
                     new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
                 );
 
+                // Clear previous draw
+                if(ctx) ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
                 if (detection) {
                     const { x, y, width, height } = detection.box;
                     const centerX = x + width / 2;
                     const centerY = y + height / 2;
+                    
+                    // Draw Box
+                    if (ctx) {
+                        ctx.strokeStyle = '#00ff00';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x, y, width, height);
+                    }
 
-                    // Dynamic Resolution Handling
-                    // Use actual video intervals to normalize to -1.0 ~ 1.0 regardless of resolution
+                    // ... (Original Logic)
                     const vWidth = this.videoElement.videoWidth;
                     const vHeight = this.videoElement.videoHeight;
 
@@ -118,14 +138,6 @@ export const FaceTracker = {
             }
         };
 
-        // Loop using requestAnimationFrame + timestamp check for stable FPS
-        // (Your manual modification is good, keeping it conceptually but verifying implementation)
-        // Since you modified it manually previously to use while(true), 
-        // I will preserve that structure if I replace the whole block, 
-        // OR I can just replace the init/start logic and keep your loop logic if I targeted more specifically.
-        // But to be safe and clean, I'll use the interval logical you just added or a standard one.
-        // Actually, the user edited the file to use a while(true) loop. I should respect that structure.
-        
         let timestamp = 0;
         while(true) {
             timestamp = Date.now();
@@ -137,7 +149,7 @@ export const FaceTracker = {
             }
         }
     },
-
+    
     onUpdate: function(callback) {
         this.onUpdateCallback = callback;
     },

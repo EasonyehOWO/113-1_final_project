@@ -30,24 +30,54 @@ body {
 }
 
 /* 視訊預覽視窗 (Debug用，正式版可隱藏) */
-#video-preview {
+/* 視訊預覽視窗容器 (包含 Video 與 Canvas Overlay) */
+#preview-container {
     position: absolute;
     bottom: 20px;
     right: 20px;
     border: 2px solid #00ff00;
     border-radius: 8px;
-    transform: scaleX(-1); /* 鏡像翻轉 */
+    transform: scaleX(-1); /* 鏡像翻轉容器 (Video + Canvas) */
     z-index: 10;
 
-    width: auto;
-    height: 120px;
+    /* 容器大小由內部 Video 撐開 (因為 Video width: auto) */
+    width: auto; 
+    height: 120px; /* 初始高度 */
 
     background-color: hsl(0, 0%, 20%);
+    
+    /* Flex 用於讓 Video 撐開容器 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
 
+    /* Hover 放大效果 */
     &:hover {
         width: calc(100vw - 40px);
         height: calc(100vh - 40px);
+        
+        /* 放大時讓內部 Video 自適應 */
+        & video, & canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
     }
+}
+
+#video-preview {
+    display: block;
+    height: 100%;
+    width: auto; /* 保持比例 */
+}
+
+#tracking-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* 讓滑鼠穿透 Canvas */
 }
 
 /* -----------------------------
