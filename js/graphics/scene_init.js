@@ -28,7 +28,9 @@ export const GraphicsApp = {
         lightX: 5,
         lightY: 5,
         lightZ: 5,
-        lightFollowCamera: false
+        lightZ: 5,
+        lightFollowCamera: false,
+        physicsMode: false
     },
 
     updateSettings: function(newSettings) {
@@ -395,10 +397,34 @@ export const GraphicsApp = {
         
         const near = this.camera.near;
         const far = this.camera.far;
-        const top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * this.camera.fov);
+        
+        // Base Frustum Dimensions at Near Plane (assuming Z=BASE_Z for "User Experience" mode)
+        let top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * this.camera.fov);
+        
+        // Physics Mode: Adjust Frustum Size based on Distance to maintain fixed "Window Size"
+        if (this.settings.physicsMode) {
+            const z = Math.max(0.1, this.camera.position.z);
+            const REFERENCE_Z = 5.0; // The distance where Scale = 1.0 (Native FOV)
+            
+            // If Z < Ref, we are closer. Window should look bigger (Wider FOV).
+            // Top_Near needs to increase to cover more angle.
+            // Top_Near = Top_Ref * (Ref / Z)?
+            // Let's verify: 
+            // Angle = atan(Top_Near / near). 
+            // We want Top_Screen = constant.
+            // Top_Screen = Top_Near * (z / near).
+            // So Top_Near = Top_Screen * (near / z).
+            // At RefZ: Top_Near_Ref = Top_Screen * (near / RefZ).
+            // Ratio: Top_Near / Top_Near_Ref = RefZ / z.
+            // So NewTop = BaseTop * (REFERENCE_Z / z).
+            
+            top *= (REFERENCE_Z / z);
+        }
+
         const bottom = -top;
         const right = top * this.camera.aspect;
         const left = -right;
+
         const z = Math.max(0.1, this.camera.position.z); // Z is distance to screen
         
         const shiftX = (this.camera.position.x / z) * near * frustumShift;
