@@ -52,8 +52,11 @@ if (isset($_GET['id'])) {
         <button class="raised" onclick="location.href = 'gallery.php'">返回藝廊</button>
     </details>
 
-    <!-- 攝影機預覽 (給 Face Tracker 用) -->
-    <video id="video-preview" autoplay muted playsinline></video>
+    <!-- 攝影機預覽 + 追蹤 Canvas -->
+    <div id="preview-container">
+        <video id="video-preview" autoplay muted playsinline></video>
+        <canvas id="tracking-canvas"></canvas>
+    </div>
 
     <!-- 3D 渲染區域 -->
     <div id="canvas-container"></div>
