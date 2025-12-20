@@ -11,6 +11,10 @@ export class Panel {
         
         // Initial broadcast
         this.broadcastSettings();
+
+        // Stop key propagation to prevent scene interference
+        this.element.addEventListener('keydown', (e) => e.stopPropagation());
+        this.element.addEventListener('keyup', (e) => e.stopPropagation());
     }
 
     loadSettings() {
