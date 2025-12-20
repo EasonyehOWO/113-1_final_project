@@ -12,7 +12,9 @@ export const FaceTracker = {
     // Smoothing handled in SceneInit now
     // Only raw detection here
     currentStream: null,
+    currentStream: null,
     settings: {},
+    isRunning: false, // Ensure initialized
 
 
     init: async function(videoElementId) {
@@ -31,10 +33,11 @@ export const FaceTracker = {
             await faceapi.nets.tinyFaceDetector.loadFromUri('assets/models/weights');
             
             this.isModelLoaded = true;
+            this.isModelLoaded = true;
             this.statusElement.innerText = "模型載入完成，啟動攝影機...";
             this.statusElement.style.color = "cyan";
 
-            this.startWebcam();
+            // this.startWebcam(); // Deferred to Panel settings broadcast
         } catch (error) {
             console.error("Model load failed:", error);
             this.statusElement.innerText = "模型載入失敗";
@@ -42,33 +45,73 @@ export const FaceTracker = {
         }
     },
 
-    startWebcam: function(constraintsOverride = null) {
+    startWebcam: async function(targetInputSize = null) {
         // Stop previous stream
         if (this.currentStream) {
             this.currentStream.getTracks().forEach(track => track.stop());
         }
 
-        const constraints = constraintsOverride || { video: {} };
+        const size = targetInputSize || this.settings.inputSize || 224;
+        let stream = null;
+        let method = "";
 
-        navigator.mediaDevices.getUserMedia(constraints)
-            .then(stream => {
-                this.currentStream = stream;
-                this.videoElement.srcObject = stream;
-                
-                // Update display status
-                const track = stream.getVideoTracks()[0];
-                const settings = track.getSettings();
-                console.log(`Webcam started: ${settings.width}x${settings.height}`);
+        // 1. try get a stream such that both sides >= size
+        await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { min: size }, 
+                height: { min: size }, 
+                facingMode: 'user' 
+            } 
+        }).then(returnStream => {
+            stream = returnStream;
+            console.log("[Webcam] Attempt 1 success");
+        })
+
+        // 2. failed. now try best-effort
+        .catch(() => 
+            navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: size }, height: { ideal: size }, facingMode: 'user' } 
+            }).then(returnStream => {
+                stream = returnStream;
+                console.log("[Webcam] Attempt 2 success");
             })
-            .catch(err => {
-                console.error("Webcam error:", err);
-                this.statusElement.innerText = "Webcam Error: " + err.message;
-            });
+        )
 
-        // Event listener might duplicate if called multiple times, ensure one-time setup or check
-        this.videoElement.onplay = () => {
-             this.startDetectionLoop();
+        // 3. both attempts are invalid
+        .catch(e => {
+            console.error("Webcam Fatal Error:", e);
+            this.statusElement.innerText = "Webcam Fatal Error: " + e.message;
+        })
+
+        if (!stream)
+            return;
+
+        this.currentStream = stream;
+        this.videoElement.srcObject = stream;
+        
+        // Wait for metadata to get true resolution
+        this.videoElement.onloadedmetadata = () => {
+            const s = this.videoElement.videoWidth + "x" + this.videoElement.videoHeight;
+            console.log(`[Webcam] Success (${s})`);
+            this.displaySize = { width: this.videoElement.videoWidth, height: this.videoElement.videoHeight };
+            
+            // Ensure canvas matches immediately
+            if(this.canvas) {
+                this.canvas.width = this.displaySize.width;
+                this.canvas.height = this.displaySize.height;
+            }
+
+            // Double ensure play
+            this.videoElement.play().catch(e => console.error("Play error", e));
         };
+        
+        
+        // Start Loop if not already running (idempotent-ish check handled inside or just call)
+        // But startDetectionLoop handles loop itself, we just need to ensure it sees new dimensions
+        if (!this.isRunning) {
+            this.isRunning = true;
+            this.startDetectionLoop();
+        }
     },
 
     startDetectionLoop: async function() {
@@ -77,6 +120,16 @@ export const FaceTracker = {
         const loop = async () => {
             if (!this.videoElement.paused && !this.videoElement.ended) {
                 
+                // 0. Wait for Model
+                if (!this.isModelLoaded) {
+                     return;
+                }
+                
+                // 0.5 Wait for Video Ready
+                if (this.videoElement.readyState < 2 || this.videoElement.videoWidth === 0) {
+                    return; // Skip if video not ready
+                }
+
                 // 1. Match Canvas to Video (Handling resize dynamically)
                 if (this.canvas && this.videoElement.videoWidth > 0) {
                      if (this.canvas.width !== this.videoElement.videoWidth || this.canvas.height !== this.videoElement.videoHeight) {
@@ -87,12 +140,18 @@ export const FaceTracker = {
 
                 // Dynamic Settings
                 const inputSize = this.settings.inputSize || 224;
-                const scoreThreshold = (inputSize > 320) ? 0.3 : 0.5;
+                const scoreThreshold = 0.3; // stick to 0.3 to make less laggy under either low or high resolution
 
-                const detection = await faceapi.detectSingleFace(
-                    this.videoElement, 
-                    new faceapi.TinyFaceDetectorOptions({ inputSize: inputSize, scoreThreshold: scoreThreshold })
-                );
+                let detection = null;
+                try {
+                    detection = await faceapi.detectSingleFace(
+                        this.videoElement, 
+                        new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold })
+                    );
+                } catch (err) {
+                    console.warn("Detection error (skipping frame):", err);
+                    return;
+                }
 
                 // Clear previous draw
                 if(ctx) ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -163,41 +222,23 @@ export const FaceTracker = {
             this.lerpFactor = settings.stabilization ? settings.lerpFactor : 1.0;
         }
         
-        if (settings.webcamRes) {
-            // Check if resolution changed physically or logically
-            const targetW = (settings.webcamRes === 'hd') ? 1280 : 
-                           (settings.webcamRes === 'fhd') ? 1920 :
-                           (settings.webcamRes === 'high') ? 640 : 320;
-            const targetH = (settings.webcamRes === 'hd') ? 720 : 
-                           (settings.webcamRes === 'fhd') ? 1080 :
-                           (settings.webcamRes === 'high') ? 480 : 240;
-
-            const oldRes = this.settings.webcamRes;
+        if (settings.inputSize && settings.inputSize !== this.lastInputSizeUsed) {
+            this.settings = { ...this.settings, ...settings };
             
-            // Update internal settings reference
-            this.settings = { ...this.settings, ...settings };
-
-            if (settings.webcamRes !== oldRes) {
-                 // Trigger Restart with new constraints
-                 console.log("Resolution changed to " + settings.webcamRes + ", restarting stream...");
-                 this.startWebcam({
-                     video: {
-                         width: { ideal: targetW },
-                         height: { ideal: targetH },
-                         facingMode: 'user'
-                     }
-                 });
-            } else {
-                 // Even if stream didn't change, update display size just in case
-                 this.displaySize = { width: targetW, height: targetH };
-                 if(this.videoElement) {
-                      this.videoElement.width = targetW;
-                      this.videoElement.height = targetH;
-                 }
-            }
+            // Debounce or immediate? Immediate for "Change" event (MouseUp) is fine.
+            // Panel ensures this only comes on MouseUp if configured correctly.
+            // But if it comes on Input, we have a problem. 
+            // We'll assume Panel handles the event type.
+            
+            // Optimization: If difference is small/same, don't restart.
+            if (this.lastInputSizeUsed && Math.abs(settings.inputSize - this.lastInputSizeUsed) < 32) return;
+            
+            this.lastInputSizeUsed = settings.inputSize;
+            
+            console.log(`[Settings] InputSize changed to ${settings.inputSize}, restarting stream...`);
+            this.startWebcam(settings.inputSize);
         } else {
-            // Update other settings
-            this.settings = { ...this.settings, ...settings };
+             this.settings = { ...this.settings, ...settings };
         }
     }
 };
