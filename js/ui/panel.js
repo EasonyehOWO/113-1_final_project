@@ -25,7 +25,6 @@ export class Panel {
             lerpFactor: 0.75,
             showCrosshair: true,
             rendererScale: 1.0,
-            rendererScale: 1.0,
             stabilization: true,
             panelOpacity: 0.6,
             showWebcam: true,
@@ -51,8 +50,8 @@ export class Panel {
             calibrationPPI: 96,
             
             // Advanced Performance
-            // Advanced Performance
-            inputSize: 320 // AI Input Resolution (160-1920)
+            inputSize: 320, // AI Input Resolution (160-1920)
+            maxFps: 30      // Target FPS (1-60)
         };
         
         const stored = localStorage.getItem('viewer_settings');
@@ -350,6 +349,10 @@ export class Panel {
                             <label>渲染解析度 (Render Scale): <span id="val-rendererScale"></span>x <span id="val-resolution" style="font-size: 0.8em; color: #888;"></span></label>
                             <input type="range" id="inp-renderScale" min="0.1" max="8.0" step="0.01">
                         </div>
+                        <div>
+                            <label>偵測幀率限制 (Max FPS): <span id="val-maxFps"></span></label>
+                            <input type="range" id="inp-maxFps" min="1" max="60" step="1">
+                        </div>
                         <div title="運算量為此值平方，請不要設太高。建議 256~480。">
                             <label>AI 輸入解析度: <span id="val-inputSize"></span></label>
                             <input type="range" id="inp-inputSize" min="160" max="1920" step="32" />
@@ -364,6 +367,10 @@ export class Panel {
     }
 
     initControls() {
+        // Assuming 'this.settings' is defined elsewhere and includes:
+        // inputSize: 320, // AI Input Resolution (160-1920)
+        // maxFps: 30      // Target FPS (1-60)
+        // ... other settings
         const panelEl = this.element.querySelector('.settings-panel');
 
         // Logic for UI updates (Opacity & Webcam)
@@ -471,7 +478,8 @@ export class Panel {
         bindRange('inp-sensY', 'sensitivityY');
         bindRange('inp-sensZ', 'sensitivityZ');
         bindRange('inp-renderScale', 'rendererScale');
-        bindRange('inp-inputSize', 'inputSize'); // New Binding
+        bindRange('inp-inputSize', 'inputSize'); 
+        bindRange('inp-maxFps', 'maxFps');
         
         // Calibration Bindings
         bindRange('inp-offsetX', 'offsetX');
@@ -684,7 +692,6 @@ export class Panel {
 
         // bindSelect('inp-webcamRes', 'webcamRes'); // Removed
         bindCheckbox('inp-showWebcam', 'showWebcam');
-        bindCheckbox('inp-showWebcam', 'showWebcam');
         bindCheckbox('inp-physicsMode', 'physicsMode'); // Physics Mode
         bindCheckbox('inp-convergenceMode', 'visualConvergenceMode'); // Convergence Mode
         bindCheckbox('inp-crosshair', 'showCrosshair');
@@ -716,7 +723,6 @@ export class Panel {
             }
         });
 
-        document.addEventListener('fullscreenchange', updateFullscreenText);
         document.addEventListener('fullscreenchange', updateFullscreenText);
         updateFullscreenText(); // Init state check
 
