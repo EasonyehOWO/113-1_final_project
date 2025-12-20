@@ -298,8 +298,8 @@ export class Panel {
                             </div>
                         </div>
                         <div>
-                            <label>渲染解析度 (Render Scale): <span id="val-rendererScale"></span>x</label>
-                            <input type="range" id="inp-renderScale" min="0.1" max="2.0" step="0.01">
+                            <label>渲染解析度 (Render Scale): <span id="val-rendererScale"></span>x <span id="val-resolution" style="font-size: 0.8em; color: #888;"></span></label>
+                            <input type="range" id="inp-renderScale" min="0.1" max="8.0" step="0.01">
                         </div>
                         <div title="運算量為此值平方，請不要設太高。建議 256~480。">
                             <label>AI 輸入解析度: <span id="val-inputSize"></span></label>
@@ -538,6 +538,27 @@ export class Panel {
         });
 
         document.addEventListener('fullscreenchange', updateFullscreenText);
+        document.addEventListener('fullscreenchange', updateFullscreenText);
         updateFullscreenText(); // Init state check
+
+        // Resolution Text Logic
+        const updateResolutionText = () => {
+            const scale = this.settings.rendererScale || 1.0;
+            const w = Math.round(window.innerWidth * scale);
+            const h = Math.round(window.innerHeight * scale);
+            const el = this.element.querySelector('#val-resolution');
+            if(el) el.innerText = `(${w} x ${h})`;
+        };
+        
+        // Update resolution text when scale changes (hook into existing listener or add new one? 
+        // bindRange adds listener to input. We can just add another listener to the input element directly here for simplicity, 
+        // or rely on the proxy setting catch? The proxy updateUIElement might be best place but that is for generic updates.
+        // Let's just add a specific listener to the slider for this specific UI feature.)
+        const scaleSlider = this.element.querySelector('#inp-renderScale');
+        if(scaleSlider) {
+             scaleSlider.addEventListener('input', updateResolutionText);
+        }
+        window.addEventListener('resize', updateResolutionText);
+        updateResolutionText(); // Init
     }
 }
