@@ -216,6 +216,7 @@ export class Panel {
                             <input type="checkbox" id="inp-crosshair">
                             顯示十字準心 (Crosshair)
                         </label>
+                        <button id="btn-fullscreen" class="btn-secondary" style="margin-top: 5px; width: 100%;">進入全螢幕</button>
                     </div>
 
                     <hr />
@@ -506,5 +507,30 @@ export class Panel {
             localStorage.removeItem('viewer_settings');
             location.reload();
         });
+
+        // Fullscreen Toggle Logic
+        const btnFullscreen = this.element.querySelector('#btn-fullscreen');
+        const updateFullscreenText = () => {
+             if (document.fullscreenElement) {
+                 btnFullscreen.innerText = "退出全螢幕";
+             } else {
+                 btnFullscreen.innerText = "進入全螢幕";
+             }
+        };
+
+        btnFullscreen.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        document.addEventListener('fullscreenchange', updateFullscreenText);
+        updateFullscreenText(); // Init state check
     }
 }
