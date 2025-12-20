@@ -14,6 +14,8 @@ Webcam 會回傳每一幀的影像。模型在影像中尋找人臉的 Bounding 
 ### 步驟 B: 座標正規化 (Normalization)
 原始的像素座標 (Pixel Coordinates) 會被轉換為標準化座標 (-1.0 至 1.0)，並進行鏡像翻轉以符合直覺：
 
+請參考 [`startDetectionLoop`](./js/tracking/face_tracker.js) 函數：
+
 ```javascript
 // js/tracking/face_tracker.js
 normX = -((centerX / videoWidth) * 2 - 1);  // 翻轉 X 軸 (鏡像)
@@ -21,21 +23,44 @@ normY = -((centerY / videoHeight) * 2 - 1); // 翻轉 Y 軸 (向上為正)
 ```
 
 ### 步驟 C: 深度估算 (Z Estimation)
+請參考 [`updateHeadData`](./js/graphics/scene_init.js) 函數。
+
 由於單鏡頭無法直接測距，我們利用「近大遠小」的原理來估算 Z 軸距離：
 - 定義一個基準臉部比例 (例如：寬度佔畫面的 35%)。
 - 若偵測到的臉部寬度**大於**基準 $\rightarrow$ 使用者**靠近** (Z 減少)。
 - 若偵測到的臉部寬度**小於**基準 $\rightarrow$ 使用者**遠離** (Z 增加)。
 
 公式：
-$$ Z_{target} = Z_{base} + (Ratio_{base} - Ratio_{current}) \times Sensitivity $$
+$$ \frac{h}{f} = \frac{H}{D} \Rightarrow D = f \times \frac{H}{h} $$
 
----
+*   $D$ : 使用者與攝影機的距離 (Z-Depth)
+*   $f$ : 攝影機焦距 (Focal Length)
+*   $H$ : 人臉的實際寬度 (Real Face Width, 約 14-16cm)
+*   $h$ : 感測器上成像的人臉寬度 (Sensor Face Width)
 
-## 2. 座標轉換 (Coordinate Transformation)
+**在程式中的實作**：
+我們將 $f \times H$ 和「『實際成像寬 $h$』與『成像在畫面中的寬度比值 $FaceWidthRatio$』的比值」視為一個可調整的常數，由使用者透過控制面板的 **Z 軸靈敏度 (sensitivityZ)** 進行設定。
+
+因此，程式邏輯簡化為：
+```javascript
+TargetZ = sensitivityZ / FaceWidthRatio
+```
+其中 `FaceWidthRatio` 是人臉寬度佔畫面寬度的比例 ($h/ScreenW$)。
+*   當人臉比例變大 (靠近鏡頭)，分母變大，$Z$ 變小 (距離變近)。
+*   當人臉比例變小 (遠離鏡頭)，分母變小，$Z$ 變大 (距離變遠)。
+
+而事實上，該常數的物理意義為：
+$$ Z 軸靈敏度 = \frac{臉框實際寬度 (dm)}{2 \tan(相機橫向視野角 / 2) }$$
+*(註：1 dm = 10 cm = 虛擬世界中的 1 格單位)*
+使用者可以依照此公式自行設定靈敏度，以達到理想的近大遠小效果。
+
+此非線性關係 ($D \propto 1/h$) 符合真實的光學物理特性。
+
+### 2.3 座標平滑化 (Smoothing)
 
 從 Face Tracker 取得的 `(x, y, z)` 只是相對數值，需要轉換為 3D 世界的虛擬相機座標。
 
-在 `js/graphics/scene_init.js` 中：
+請參考 [`updateHeadData`](./js/graphics/scene_init.js) (位於 `js/graphics/scene_init.js`)。
 
 ### 靈敏度與偏移 (Sensitivity & Offset)
 我們將標準化座標乘上「靈敏度」係數，轉換為虛擬世界的單位 (例如 cm 或 unit)，並加上校準偏移量：
@@ -55,6 +80,8 @@ FinalZ = RawZ
 這是本系統最核心的部分。一般 3D 遊戲的相機總是看向正中央，但在「全息視窗」效果中，當你頭往左移，你應該看到視窗右側的更多內容（就像看窗戶一樣）。
 
 我們使用 **非對稱視錐體 (Asymmetric Frustum)** 來達成此效果：
+
+請參考 [`animate`](./js/graphics/scene_init.js) 函數中的 `projectionMatrix` 更新邏輯。
 
 ### 原理
 一般的透視投影矩陣 (Perspective Projection Matrix) 是對稱的。而我們需要根據使用者的頭部位置 $(x_c, y_c, z_c)$ 來偏移視錐體的頂底左右邊界。
