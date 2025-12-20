@@ -20,23 +20,47 @@ Webcam 會回傳每一幀的影像。模型在影像中尋找人臉的 Bounding 
 // js/tracking/face_tracker.js
 normX = -((centerX / videoWidth) * 2 - 1);  // 翻轉 X 軸 (鏡像)
 normY = -((centerY / videoHeight) * 2 - 1); // 翻轉 Y 軸 (向上為正)
+faceWidthRatio = width / videoWidth;        // 使用人臉寬度佔畫面寬度的比例代替 Z
+```
+---
+
+## 2. 座標轉換 (Coordinate Transformation)
+
+從 Face Tracker 取得的 `(x, y, z)` 只是相對數值，需要轉換為 3D 世界的虛擬相機座標。
+
+請參考 [`updateHeadData`](./js/graphics/scene_init.js) (位於 `js/graphics/scene_init.js`)。
+
+### 2.1 靈敏度與偏移 (Sensitivity & Offset)
+
+我們將標準化座標乘上「靈敏度」係數，轉換為虛擬世界的單位 (1 unit = 10cm = 1dm)，並加上校準偏移量：
+
+```javascript
+FinalX = (RawX * SensitivityX) + OffsetX
+FinalY = (RawY * SensitivityY) + OffsetY
+FinalZ = sensitivityZ / FaceWidthRatio // 原理請看下面 2.3
 ```
 
-### 步驟 C: 深度估算 (Z Estimation)
+這決定了虛擬相機 (Virtual Camera) 在 3D 空間中的確切位置。
+
+### 2.2 座標平滑化 (Smoothing)
+
+為了避免 Webcam 訊號抖動導致的頭暈，我們對座標進行平滑化處理 (Lerp)。
+目前的演算法會將「目標位置」與「當前位置」進行插值，`lerpFactor` 決定了跟隨的速度與平滑程度。
+
+
+### 2.3 深度估算 (Z Estimation)
 請參考 [`updateHeadData`](./js/graphics/scene_init.js) 函數。
 
-由於單鏡頭無法直接測距，我們利用「近大遠小」的原理來估算 Z 軸距離：
-- 定義一個基準臉部比例 (例如：寬度佔畫面的 35%)。
-- 若偵測到的臉部寬度**大於**基準 $\rightarrow$ 使用者**靠近** (Z 減少)。
-- 若偵測到的臉部寬度**小於**基準 $\rightarrow$ 使用者**遠離** (Z 增加)。
+由於單鏡頭無法直接測距，我們利用「近大遠小」的原理來估算 Z 軸距離。
 
-公式：
+針孔成像公式如下：
 $$ \frac{h}{f} = \frac{H}{D} \Rightarrow D = f \times \frac{H}{h} $$
 
 *   $D$ : 使用者與攝影機的距離 (Z-Depth)
 *   $f$ : 攝影機焦距 (Focal Length)
 *   $H$ : 人臉的實際寬度 (Real Face Width, 約 14-16cm)
 *   $h$ : 感測器上成像的人臉寬度 (Sensor Face Width)
+
 
 **在程式中的實作**：
 我們將 $f \times H$ 和「『實際成像寬 $h$』與『成像在畫面中的寬度比值 $FaceWidthRatio$』的比值」視為一個可調整的常數，由使用者透過控制面板的 **Z 軸靈敏度 (sensitivityZ)** 進行設定。
@@ -55,23 +79,6 @@ $$ Z 軸靈敏度 = \frac{臉框實際寬度 (dm)}{2 \tan(相機橫向視野角 
 使用者可以依照此公式自行設定靈敏度，以達到理想的近大遠小效果。
 
 此非線性關係 ($D \propto 1/h$) 符合真實的光學物理特性。
-
-### 2.3 座標平滑化 (Smoothing)
-
-從 Face Tracker 取得的 `(x, y, z)` 只是相對數值，需要轉換為 3D 世界的虛擬相機座標。
-
-請參考 [`updateHeadData`](./js/graphics/scene_init.js) (位於 `js/graphics/scene_init.js`)。
-
-### 靈敏度與偏移 (Sensitivity & Offset)
-我們將標準化座標乘上「靈敏度」係數，轉換為虛擬世界的單位 (例如 cm 或 unit)，並加上校準偏移量：
-
-```javascript
-FinalX = (RawX * SensitivityX) + OffsetX
-FinalY = (RawY * SensitivityY) + OffsetY
-FinalZ = RawZ
-```
-
-這決定了虛擬相機 (Virtual Camera) 在 3D 空間中的確切位置。
 
 ---
 
