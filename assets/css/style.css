@@ -25,6 +25,7 @@ html {
     --dim-filter: brightness(0.9);
 
     /* For unstyled buttons etc. */
+    --color-on-block: var(--text-main);
     --block-bg: var(--bg-color);
     --dim-block-bg: color-mix(in srgb, var(--bg-color) 90%, black);
     
@@ -74,6 +75,8 @@ textarea.raised {
 
     margin: 0;
     font-size: inherit;
+
+    color: var(--color-on-block);
     background-color: var(--block-bg);
 
     &:is(a, .btnlike) {
