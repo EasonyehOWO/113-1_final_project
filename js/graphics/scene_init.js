@@ -38,7 +38,14 @@ export const GraphicsApp = {
         // Fog & Distance
         fogNear: 5.0,
         fogFar: 20.0,
+        // Fog & Distance
+        fogNear: 5.0,
+        fogFar: 20.0,
         cameraFar: 1000.0,
+        cameraNear: 0.1,
+        
+        // Calibration
+        calibrationPPI: 96,
         
         // Advanced
         visualConvergenceMode: false
@@ -70,6 +77,10 @@ export const GraphicsApp = {
         }
         if (this.camera && newSettings.cameraFar !== undefined) {
             this.camera.far = newSettings.cameraFar;
+            this.camera.updateProjectionMatrix();
+        }
+        if (this.camera && newSettings.cameraNear !== undefined) {
+            this.camera.near = newSettings.cameraNear;
             this.camera.updateProjectionMatrix();
         }
     },
@@ -114,7 +125,9 @@ export const GraphicsApp = {
         // -------------------------------------------------
 
         // 2. Camera (Tracks Physical Head Only)
-        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // 2. Camera (Tracks Physical Head Only)
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, this.settings.cameraNear, this.settings.cameraFar);
+        this.camera.position.z = 5;
         this.camera.position.z = 5;
         this.targetCamPos.copy(this.camera.position);
 
@@ -346,18 +359,32 @@ export const GraphicsApp = {
         }
 
         // Validate Inputs
-
-        if (isNaN(x) || isNaN(y) || isNaN(faceWidthRatio)) return;
-
-        // Cleanup: remove unused variables and ensure settings are numbers
-        const offX = isNaN(this.settings.offsetX) ? 0 : this.settings.offsetX;
-        const offY = isNaN(this.settings.offsetY) ? 0 : this.settings.offsetY;
+        if (!data || !data.face) return;
         
-        // Calculate Target Position
-        // X/Y: Normalized Input * Sensitivity + Offset
-        const targetX = (x * this.settings.sensitivityX) + offX;
-        const targetY = (y * this.settings.sensitivityY) + offY;
+        // --- PPI Correction for Sensitivity ---
+        // If "Physics Mode" is ON, screen is smaller in Units on high PPI.
+        // Sensitivity * Webcam Normalized (in [-1, 1]) -> Units.
+        // We want 1 Unit to represent same Physical Movement.
+        // So we scale output by (96 / PPI / 2).
+        const ppi = this.settings.calibrationPPI || 96;
+        const ppiFactor = 48.0 / ppi;
         
+        const face = data.face;
+        // const { x, y, faceWidthRatio } = data; // Already declared above
+        
+        // 1. Calculate Target Position (Raw Sensitivity)
+        // Note: Face X/Y are in pixels relative to video center
+        let targetX = (x * this.settings.sensitivityX) + (this.settings.offsetX || 0);
+        let targetY = (y * this.settings.sensitivityY) + (this.settings.offsetY || 0);
+
+        // Apply PPI correction
+        targetX *= ppiFactor;
+        targetY *= ppiFactor;
+        
+        // Invert X/Y based on settings
+        if (this.settings.invertX) targetX = -targetX;
+        if (this.settings.invertY) targetY = -targetY;
+
         // Z: Pinhole Model approximation (針孔成像原理)
         // Formula: h / f = H / D  =>  D = f * (H / h)
         // - D: Distance from camera (Z)
@@ -467,26 +494,32 @@ export const GraphicsApp = {
              // but here we are overriding projectionMatrix manually in the other branch.
              // So we must reset it here to be safe.
              
-             const BASE_FOV = 60; // Keep in sync with init
-             
+             // PPI & Calibration Commons
+             const ppi = this.settings.calibrationPPI || 96;
+             const ppcm = ppi / 2.54;
+             // Virtual Screen Height (in decimeters, 1 unit = 10cm)
+             // ScreenHeightPixels / PPCM / 10
+             const screenH_dm = (window.innerHeight / ppcm) / 10.0;
+             const halfH_dm = screenH_dm / 2.0;
+
+             // Calculate Calibrated FOV for Reference Distance
+             const REF_DIST_DM = 6.0; // 60cm standard comfortable viewing distance
+             const calibratedFOV = THREE.MathUtils.RAD2DEG * 2 * Math.atan(halfH_dm / REF_DIST_DM);
+
              if (this.settings.physicsMode) {
                  const z = Math.max(0.1, this.camera.position.z);
-                 const REFERENCE_Z = 5.0; // Scale = 1.0 at this distance
                  
-                 // Math: 
-                 // top_base = near * tan(fov_base / 2)
-                 // top_new  = top_base * (REF / z)
-                 // tan(fov_new / 2) = tan(fov_base / 2) * (REF / z)
+                 // Calculate FOV to match Screen Height at Distance Z
+                 // tan(fov/2) = halfH / z
+                 const fovRad = 2 * Math.atan(halfH_dm / z);
                  
-                 const tanBase = Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * BASE_FOV);
-                 const tanNew = tanBase * (REFERENCE_Z / z);
-                 
-                 this.camera.fov = THREE.MathUtils.RAD2DEG * 2 * Math.atan(tanNew);
+                 this.camera.fov = THREE.MathUtils.RAD2DEG * fovRad;
              } else {
-                 this.camera.fov = BASE_FOV;
+                 // ** Zoom Mode (Calibrated) **
+                 // Use the FOV that feels "Corret" at 60cm distance regardless of screen size.
+                 this.camera.fov = calibratedFOV;
              }
              
-             // Simply calling updateProjectionMatrix() uses the camera's current .fov, .aspect, etc.
              this.camera.updateProjectionMatrix();
 
         } else {
@@ -494,37 +527,76 @@ export const GraphicsApp = {
             // Camera Rotation is ALWAYS 0 (Perpendicular to Screen)
             this.camera.rotation.set(0, 0, 0);
 
-            // 4. Off-axis Projection Logic (Standard)
-            const convergence = this.settings.convergence;
-            const frustumShift = (1.0 - convergence);
-            
             const near = this.camera.near;
             const far = this.camera.far;
             
-            // Base Frustum Dimensions at Near Plane (assuming Z=BASE_Z for "User Experience" mode)
-            let top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * this.camera.fov);
+            let l, r, t, b; // Frustum planes
             
-            // Physics Mode: Adjust Frustum Size based on Distance to maintain fixed "Window Size"
+            // Common Calibration Data
+            const ppi = this.settings.calibrationPPI || 96;
+            const ppcm = ppi / 2.54;
+            const screenW_dm = (window.innerWidth / ppcm) / 10.0;
+            const screenH_dm = (window.innerHeight / ppcm) / 10.0;
+            const halfW = screenW_dm / 2;
+            const halfH = screenH_dm / 2;
+             
             if (this.settings.physicsMode) {
+                 // ** Calibration / True Physics Mode **
+                 // Uses PPI to calculate exact physical size of the window
+                 
+                 const z = Math.max(0.1, this.camera.position.z);
+                 
+                 // Camera Position (Head) relative to Screen Center (0,0,0)
+                 const cx = this.camera.position.x;
+                 const cy = this.camera.position.y;
+                 const cz = z; // Distance to screen
+                 
+                 // Direct Off-axis Calculation (Similar Triangles)
+                 t = ((halfH - cy) * near) / cz;
+                 b = ((-halfH - cy) * near) / cz;
+                 r = ((halfW - cx) * near) / cz;
+                 l = ((-halfW - cx) * near) / cz;
+                 
+                 // DEBUG: Log Frustum Width (Verify Physics)
+                 // Throttle to ~1Hz (assuming 60fps)
+                 if (!this._debugFrameCnt) this._debugFrameCnt = 0;
+                 if (this._debugFrameCnt++ % 60 === 0) {
+                     const fWidth = r - l;
+                     const fHeight = t - b;
+                     console.log(`[PhysicsCheck] Dist: ${z.toFixed(2)} | ScreenW(dm): ${screenW_dm.toFixed(3)} | NearWidth: ${fWidth.toFixed(5)}`);
+                 }
+                 
+                 this.camera.projectionMatrix.makePerspective(l, r, t, b, near, far);
+                 
+            } else {
+                // ** Zoom Mode (Calibrated Legacy Mode) **
+                // Uses Fixed FOV + Frustum Shift
+                
+                // Calculate Calibrated FOV for Reference Distance (60cm)
+                const REF_DIST_DM = 6.0; 
+                const calibratedFOV = THREE.MathUtils.RAD2DEG * 2 * Math.atan(halfH / REF_DIST_DM);
+                
+                this.camera.fov = calibratedFOV;
+                
+                const convergence = this.settings.convergence;
+                const frustumShift = (1.0 - convergence);
+                
+                let top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * this.camera.fov);
+                let bottom = -top;
+                let right = top * this.camera.aspect;
+                let left = -right;
+        
                 const z = Math.max(0.1, this.camera.position.z);
-                const REFERENCE_Z = 5.0; // The distance where Scale = 1.0 (Native FOV)
-                top *= (REFERENCE_Z / z);
+                
+                const shiftX = (this.camera.position.x / z) * near * frustumShift;
+                const shiftY = (this.camera.position.y / z) * near * frustumShift;
+        
+                this.camera.projectionMatrix.makePerspective(
+                    left - shiftX, right - shiftX, 
+                    top - shiftY, bottom - shiftY, 
+                    near, far
+                );
             }
-    
-            const bottom = -top;
-            const right = top * this.camera.aspect;
-            const left = -right;
-    
-            const z = Math.max(0.1, this.camera.position.z); // Z is distance to screen
-            
-            const shiftX = (this.camera.position.x / z) * near * frustumShift;
-            const shiftY = (this.camera.position.y / z) * near * frustumShift;
-    
-            this.camera.projectionMatrix.makePerspective(
-                left - shiftX, right - shiftX, 
-                top - shiftY, bottom - shiftY, 
-                near, far
-            );
         }
 
         // Update Shader Uniforms if model exists
