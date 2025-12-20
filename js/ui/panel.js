@@ -285,7 +285,13 @@ export class Panel {
                         <div>
                             <label>Y 軸靈敏度: <span id="val-sensY"></span></label>
                             <input type="range" id="inp-sensY" min="-100" max="100" step="0.2">
-                            <!-- 
+                        </div>
+                        <div title="= 臉框實寬(cm) / 10 / 2 / tan(橫向視野角 / 2)">
+                            <label>Z 軸靈敏度（焦距和臉寬參數）: <span id="val-sensZ"></span></label>
+                            <input type="range" id="inp-sensZ" min="0.1" max="5.0" step="0.1">
+                        </div>
+                        <!-- Future Physical Size Inputs (Placeholders for now) -->
+                        <!-- 
                         <div style="margin-top:5px;">
                             <label>螢幕寬度 (cm): <span id="val-screenWidth"></span></label>
                             <input type="number" id="inp-screenWidth" value="30" step="0.5" style="width:60px;">
@@ -309,18 +315,6 @@ export class Panel {
                             <label>霧氣結束 (Fog Far): <span id="val-fogFar"></span></label>
                             <input type="range" id="inp-fogFar" min="0" max="100" step="1">
                         </div>
-                    </div>
-                        <div title="= 臉框實寬(cm) / 10 / 2 / tan(橫向視野角 / 2)">
-                            <label>Z 軸靈敏度（焦距和臉寬參數）: <span id="val-sensZ"></span></label>
-                            <input type="range" id="inp-sensZ" min="0.1" max="5.0" step="0.1">
-                        </div>
-                        <!-- Future Physical Size Inputs (Placeholders for now) -->
-                        <!-- 
-                        <div style="margin-top:5px;">
-                            <label>螢幕寬度 (cm): <span id="val-screenWidth"></span></label>
-                            <input type="number" id="inp-screenWidth" value="30" step="0.5" style="width:60px;">
-                        </div> 
-                        -->
                     </div>
 
                     <hr />
