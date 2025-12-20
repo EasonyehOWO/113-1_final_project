@@ -40,7 +40,9 @@ export class Panel {
             lightFollowCamera: true,
             lightFollowCamera: true,
             physicsMode: false, // True = Window/Physics Mode, False = Zoom Mode
+            visualConvergenceMode: false, // True = LookAt Center (Hologram), False = Window Off-axis
             
+            // Advanced Performance
             // Advanced Performance
             inputSize: 320 // AI Input Resolution (160-1920)
         };
@@ -208,9 +210,13 @@ export class Panel {
                             <input type="checkbox" id="inp-showWebcam">
                             顯示視訊預覽 (Webcam Preview)
                         </label>
-                        <label class="toggle-label" title="開啟後，靠近螢幕時視野變廣（物體視覺上縮小）；關閉則為單純放大（Zoom）。">
+                        <label class="toggle-label" title="開啟後，靠近螢幕時視野變廣（遠處物體螢幕上縮小、近處放大）；關閉則為單純放大（Zoom）。">
                             <input type="checkbox" id="inp-physicsMode">
                             真實透視模式 (Physical Window)
+                        </label>
+                        <label class="toggle-label" title="開啟後，相機將始終注視場景中心（全息投影效果）；關閉則為視窗模式。">
+                            <input type="checkbox" id="inp-convergenceMode">
+                            視覺收斂模式 (LookAt Center)
                         </label>
                         <label class="toggle-label">
                             <input type="checkbox" id="inp-crosshair">
@@ -295,7 +301,7 @@ export class Panel {
                             <label>渲染解析度 (Render Scale): <span id="val-rendererScale"></span>x</label>
                             <input type="range" id="inp-renderScale" min="0.1" max="2.0" step="0.01">
                         </div>
-                        <div style="margin-top: 5px;" title="運算量為此值平方，請不要設太高。建議 256~480。">
+                        <div title="運算量為此值平方，請不要設太高。建議 256~480。">
                             <label>AI 輸入解析度: <span id="val-inputSize"></span></label>
                             <input type="range" id="inp-inputSize" min="160" max="1920" step="32" />
                         </div>
@@ -501,6 +507,7 @@ export class Panel {
         bindCheckbox('inp-showWebcam', 'showWebcam');
         bindCheckbox('inp-showWebcam', 'showWebcam');
         bindCheckbox('inp-physicsMode', 'physicsMode'); // Physics Mode
+        bindCheckbox('inp-convergenceMode', 'visualConvergenceMode'); // Convergence Mode
         bindCheckbox('inp-crosshair', 'showCrosshair');
 
         this.element.querySelector('#btn-reset').addEventListener('click', () => {
