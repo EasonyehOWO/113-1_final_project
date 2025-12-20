@@ -26,7 +26,12 @@ export class Panel {
             panelOpacity: 0.6,
             showWebcam: true,
             offsetX: 0,
-            offsetY: 0
+            offsetY: 0,
+            lightEnabled: true,
+            lightX: 5,
+            lightY: 5,
+            lightZ: 5,
+            lightFollowCamera: false
         };
         
         const stored = localStorage.getItem('viewer_settings');
@@ -134,6 +139,27 @@ export class Panel {
                         </label>
                     </div>
                     <div class="control-group">
+                        <label style="color: #00bcd4;">光源設定 (Lighting)</label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="inp-lightEnabled">
+                            啟用自訂光源 (Enable Light)
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="inp-lightFollow">
+                            光源跟隨相機 (Flashlight)
+                        </label>
+                        <div id="group-lightPos" style="margin-top:5px;">
+                            <label>Light X: <span id="val-lightX"></span></label>
+                            <input type="range" id="inp-lightX" min="-20" max="20" step="0.5">
+                            
+                            <label>Light Y: <span id="val-lightY"></span></label>
+                            <input type="range" id="inp-lightY" min="-20" max="20" step="0.5">
+
+                            <label>Light Z: <span id="val-lightZ"></span></label>
+                            <input type="range" id="inp-lightZ" min="-20" max="20" step="0.5">
+                        </div>
+                    </div>
+                    <div class="control-group">
                         <label class="toggle-label">
                             <input type="checkbox" id="inp-crosshair">
                             顯示十字準心 (Crosshair)
@@ -226,8 +252,55 @@ export class Panel {
         // Calibration Bindings
         bindRange('inp-offsetX', 'offsetX');
         bindRange('inp-offsetY', 'offsetY');
+
+        // Lighting Bindings
+        bindRange('inp-lightX', 'lightX');
+        bindRange('inp-lightY', 'lightY');
+        bindRange('inp-lightZ', 'lightZ');
         
-        // Stabilization logic
+        const lightEnabledCheck = this.element.querySelector('#inp-lightEnabled');
+        bindCheckbox('inp-lightEnabled', 'lightEnabled'); // Bind new toggle
+
+        const lightFollowCheck = this.element.querySelector('#inp-lightFollow');
+        const lightPosGroup = this.element.querySelector('#group-lightPos');
+        
+        lightFollowCheck.checked = this.settings.lightFollowCamera;
+        
+        const updateLightUI = () => {
+             // If Light Disabled, dim whole group
+             if(!this.settings.lightEnabled) {
+                 lightPosGroup.style.opacity = '0.3';
+                 lightPosGroup.style.pointerEvents = 'none';
+                 lightFollowCheck.disabled = true;
+                 return;
+             }
+             
+             lightFollowCheck.disabled = false;
+             
+             if(this.settings.lightFollowCamera) {
+                 lightPosGroup.style.opacity = '0.3';
+                 lightPosGroup.style.pointerEvents = 'none';
+             } else {
+                 lightPosGroup.style.opacity = '1.0';
+                 lightPosGroup.style.pointerEvents = 'auto';
+             }
+        };
+        updateLightUI();
+
+        lightFollowCheck.addEventListener('change', (e) => {
+            this.settings.lightFollowCamera = e.target.checked;
+            updateLightUI();
+            this.broadcastSettings();
+        });
+        
+        lightEnabledCheck.addEventListener('change', (e) => {
+            updateLightUI(); // Settings updated by bindCheckbox already? No, bindCheckbox adds its own listener.
+            // We need to hook into the update.
+            // Actually bindCheckbox does: this.settings[key] = val; broadcast();
+            // We can just listen to it or patch it.
+            // Simplest: Add another listener
+            setTimeout(updateLightUI, 0); 
+        });
         const lerpSlider = this.element.querySelector('#inp-lerp');
         const stabCheck = this.element.querySelector('#inp-stabilization');
         const valLerp = this.element.querySelector('#val-lerp');
