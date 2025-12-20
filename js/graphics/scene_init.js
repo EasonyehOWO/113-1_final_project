@@ -434,55 +434,77 @@ export const GraphicsApp = {
         const lerpFactor = 0.1;
         this.camera.position.lerp(this.targetCamPos, lerpFactor);
         
-        // Camera Rotation is ALWAYS 0 (Perpendicular to Screen) for Off-axis
-        this.camera.rotation.set(0, 0, 0);
+        if (this.settings.visualConvergenceMode) {
+             // --- Mode 2: Visual Convergence (Hologram / Orbit) ---
+             // Camera stays at head position but rotates to look at target (0,0,0)
+             // No off-axis projection needed (standard symmetric frustum)
+             this.camera.lookAt(0, 0, 0);
+             
+             // Standard Perspective Projection
+             // We just need to ensure aspect ratio is correct. 
+             // onWindowResize handles standard updateProjectionMatrix, 
+             // but here we are overriding projectionMatrix manually in the other branch.
+             // So we must reset it here to be safe.
+             
+             const BASE_FOV = 60; // Keep in sync with init
+             
+             if (this.settings.physicsMode) {
+                 const z = Math.max(0.1, this.camera.position.z);
+                 const REFERENCE_Z = 5.0; // Scale = 1.0 at this distance
+                 
+                 // Math: 
+                 // top_base = near * tan(fov_base / 2)
+                 // top_new  = top_base * (REF / z)
+                 // tan(fov_new / 2) = tan(fov_base / 2) * (REF / z)
+                 
+                 const tanBase = Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * BASE_FOV);
+                 const tanNew = tanBase * (REFERENCE_Z / z);
+                 
+                 this.camera.fov = THREE.MathUtils.RAD2DEG * 2 * Math.atan(tanNew);
+             } else {
+                 this.camera.fov = BASE_FOV;
+             }
+             
+             // Simply calling updateProjectionMatrix() uses the camera's current .fov, .aspect, etc.
+             this.camera.updateProjectionMatrix();
 
-        // 4. Off-axis Projection Logic (Standard)
-        const convergence = this.settings.convergence;
-        const frustumShift = (1.0 - convergence);
-        // ... Projection math uses this.camera.position (Head Tracking) ...
-        // ... Re-use existing frustum shift code ...
-        
-        const near = this.camera.near;
-        const far = this.camera.far;
-        
-        // Base Frustum Dimensions at Near Plane (assuming Z=BASE_Z for "User Experience" mode)
-        let top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * this.camera.fov);
-        
-        // Physics Mode: Adjust Frustum Size based on Distance to maintain fixed "Window Size"
-        if (this.settings.physicsMode) {
-            const z = Math.max(0.1, this.camera.position.z);
-            const REFERENCE_Z = 5.0; // The distance where Scale = 1.0 (Native FOV)
+        } else {
+            // --- Mode 1: Window Mode (Off-axis Projection) ---
+            // Camera Rotation is ALWAYS 0 (Perpendicular to Screen)
+            this.camera.rotation.set(0, 0, 0);
+
+            // 4. Off-axis Projection Logic (Standard)
+            const convergence = this.settings.convergence;
+            const frustumShift = (1.0 - convergence);
             
-            // If Z < Ref, we are closer. Window should look bigger (Wider FOV).
-            // Top_Near needs to increase to cover more angle.
-            // Top_Near = Top_Ref * (Ref / Z)?
-            // Let's verify: 
-            // Angle = atan(Top_Near / near). 
-            // We want Top_Screen = constant.
-            // Top_Screen = Top_Near * (z / near).
-            // So Top_Near = Top_Screen * (near / z).
-            // At RefZ: Top_Near_Ref = Top_Screen * (near / RefZ).
-            // Ratio: Top_Near / Top_Near_Ref = RefZ / z.
-            // So NewTop = BaseTop * (REFERENCE_Z / z).
+            const near = this.camera.near;
+            const far = this.camera.far;
             
-            top *= (REFERENCE_Z / z);
+            // Base Frustum Dimensions at Near Plane (assuming Z=BASE_Z for "User Experience" mode)
+            let top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * this.camera.fov);
+            
+            // Physics Mode: Adjust Frustum Size based on Distance to maintain fixed "Window Size"
+            if (this.settings.physicsMode) {
+                const z = Math.max(0.1, this.camera.position.z);
+                const REFERENCE_Z = 5.0; // The distance where Scale = 1.0 (Native FOV)
+                top *= (REFERENCE_Z / z);
+            }
+    
+            const bottom = -top;
+            const right = top * this.camera.aspect;
+            const left = -right;
+    
+            const z = Math.max(0.1, this.camera.position.z); // Z is distance to screen
+            
+            const shiftX = (this.camera.position.x / z) * near * frustumShift;
+            const shiftY = (this.camera.position.y / z) * near * frustumShift;
+    
+            this.camera.projectionMatrix.makePerspective(
+                left - shiftX, right - shiftX, 
+                top - shiftY, bottom - shiftY, 
+                near, far
+            );
         }
-
-        const bottom = -top;
-        const right = top * this.camera.aspect;
-        const left = -right;
-
-        const z = Math.max(0.1, this.camera.position.z); // Z is distance to screen
-        
-        const shiftX = (this.camera.position.x / z) * near * frustumShift;
-        const shiftY = (this.camera.position.y / z) * near * frustumShift;
-
-        this.camera.projectionMatrix.makePerspective(
-            left - shiftX, right - shiftX, 
-            top - shiftY, bottom - shiftY, 
-            near, far
-        );
 
         // Update Shader Uniforms if model exists
         if (this.currentModel) {
