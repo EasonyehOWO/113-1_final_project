@@ -35,13 +35,133 @@ export class Panel {
         };
         
         const stored = localStorage.getItem('viewer_settings');
-        return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
+        const initial = stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
+
+        // Create Proxy to make settings reactive
+        const handler = {
+            set: (target, prop, value) => {
+                // 1. Reflect change
+                if (target[prop] === value) return true;
+                target[prop] = value;
+                
+                // 2. Update UI Element (if exists)
+                this.updateUIElement(prop, value);
+                
+                // 3. Side Effects (Save & Broadcast)
+                // Debounce saving/broadcasting might be needed if high freq, but for now direct.
+                this.saveSettings();
+                this.onUpdate(this.settings);
+                
+                return true;
+            }
+        };
+
+        return new Proxy(initial, handler);
     }
-    // ...
-    // Inside initControls, add bindings
-    // ...
     
-    // (We need to insert bindings in initControls, so I will target a known location)
+    updateUIElement(key, value) {
+        // Map key to UI IDs or logic
+        // Need to replicate the logic inside initControls or check bindings.
+        // Best way: Map keys to IDs when binding? Or query inputs.
+        
+        // 1. Checkbox?
+        // 2. Range?
+        // 3. Select?
+        
+        // IDs often follow pattern: inp-{key} or special cases.
+        // We can try to find element by ID: `inp-${key}`? 
+        // Or reverse lookup from bindings?
+        // Let's use a simpler heuristic or just query known elements.
+        
+        let el = this.element.querySelector(`#inp-${key}`);
+        
+        // Handle special cases
+        if (key.startsWith('sensitivity')) {
+            const suffix = key.replace('sensitivity', 'sens');
+            el = this.element.querySelector(`#inp-${suffix}`);
+        }
+        if (key === 'lerpFactor') el = this.element.querySelector('#inp-lerp');
+        
+        if (!el) return; // No UI for this setting
+
+        // Update Values
+        if (el.type === 'checkbox') {
+             el.checked = value;
+        } else {
+             el.value = value;
+        }
+
+        // Update Labels (span val-{id})
+        const dispId = el.id.replace('inp-', 'val-');
+        const disp = this.element.querySelector(`#${dispId}`);
+        if(disp) {
+            // Special format if needed?
+            if(el.type === 'checkbox' && key === 'stabilization') {
+                // Handled in specific logic?
+                // Panel logic is scattered inside initControls closures.
+                // We might need to refactor updates to be accessible methods.
+            } else {
+                disp.innerText = value;
+            }
+        }
+        
+        // Update Visual Effects (Opacity/Webcam)
+        if(key === 'panelOpacity' || key === 'showWebcam') {
+           this.updateUIEffects();
+        }
+        
+        // Update Light UI state (enable/disable group)
+        if(key === 'lightEnabled' || key === 'lightFollowCamera') {
+            this.updateLightUI();
+        }
+        if(key === 'stabilization' || key === 'lerpFactor') {
+            this.updateLerpUI();
+        }
+    }
+    
+    // Extracted helper methods need to be class methods now
+    updateUIEffects() {
+        const panelEl = this.element.querySelector('.settings-panel');
+        if(panelEl) panelEl.style.setProperty('--panel-idle-opacity', this.settings.panelOpacity);
+        
+        const videoPreview = document.getElementById('video-preview');
+        if (videoPreview) {
+            videoPreview.style.display = this.settings.showWebcam ? 'block' : 'none';
+        }
+    }
+    
+    updateLightUI() {
+         const lightPosGroup = this.element.querySelector('#group-lightPos');
+         const lightFollowCheck = this.element.querySelector('#inp-lightFollow');
+         if(!lightPosGroup || !lightFollowCheck) return;
+
+         if(!this.settings.lightEnabled) {
+             lightPosGroup.style.opacity = '0.3';
+             lightPosGroup.style.pointerEvents = 'none';
+             lightFollowCheck.disabled = true;
+             return;
+         }
+         
+         lightFollowCheck.disabled = false;
+         
+         if(this.settings.lightFollowCamera) {
+             lightPosGroup.style.opacity = '0.3';
+             lightPosGroup.style.pointerEvents = 'none';
+         } else {
+             lightPosGroup.style.opacity = '1.0';
+             lightPosGroup.style.pointerEvents = 'auto';
+         }
+    }
+
+    updateLerpUI() {
+        const lerpSlider = this.element.querySelector('#inp-lerp');
+        const valLerp = this.element.querySelector('#val-lerp');
+        if(!lerpSlider) return;
+        
+        lerpSlider.disabled = !this.settings.stabilization;
+        lerpSlider.value = this.settings.lerpFactor;
+        if(valLerp) valLerp.innerText = this.settings.stabilization ? this.settings.lerpFactor : "關閉 (即時)";
+    }
 
 
     saveSettings() {
