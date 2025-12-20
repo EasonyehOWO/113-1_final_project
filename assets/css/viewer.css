@@ -5,6 +5,8 @@ body {
     overflow: hidden;
     background-color: #1a1a1a;
     font-family: sans-serif;
+
+    color-scheme: dark;
 }
 
 #canvas-container {

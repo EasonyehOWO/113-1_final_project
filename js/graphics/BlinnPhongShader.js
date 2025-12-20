@@ -6,6 +6,7 @@ export const BlinnPhongShader = {
         uTexture: { value: null },                    // Texture
         uHasTexture: { value: false },                // Toggle
         uLightPos: { value: new THREE.Vector3(5, 5, 5) },
+        uLightColor: { value: new THREE.Color(0xffffff) }, // Light Color
         uViewPos: { value: new THREE.Vector3(0, 0, 5) },
         uAmbientColor: { value: new THREE.Color(0x222222) },
         uSpecularColor: { value: new THREE.Color(0xffffff) },
@@ -38,6 +39,7 @@ export const BlinnPhongShader = {
         uniform bool uHasTexture;
         
         uniform vec3 uLightPos;
+        uniform vec3 uLightColor;
         uniform vec3 uViewPos;
         uniform vec3 uAmbientColor;
         uniform vec3 uSpecularColor;
@@ -80,7 +82,10 @@ export const BlinnPhongShader = {
             // Auto-detect Light Toggle via Intensity
             // (Passed via uRoughness or separate uniform? Better separate)
             
-            vec3 diffuse = diff * baseColor * uLightIntensity;
+            // Auto-detect Light Toggle via Intensity
+            // (Passed via uRoughness or separate uniform? Better separate)
+            
+            vec3 diffuse = diff * baseColor * uLightColor * uLightIntensity;
 
             // Specular (Blinn-Phong)
             // Approximate Shininess from Roughness
@@ -94,7 +99,7 @@ export const BlinnPhongShader = {
             vec3 viewDir = normalize(uViewPos - vPosition);
             vec3 halfDir = normalize(lightDir + viewDir);
             float spec = pow(max(dot(normal, halfDir), 0.0), shininess);
-            vec3 specular = uSpecularColor * spec * specStrength * uLightIntensity;
+            vec3 specular = uSpecularColor * spec * specStrength * uLightColor * uLightIntensity;
 
             // Emissive
             vec3 emissive = uEmissive;
