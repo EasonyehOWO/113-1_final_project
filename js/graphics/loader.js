@@ -1,7 +1,6 @@
 /**
  * js/loader.js
  * 負責載入外部資源 (文字檔、圖片等)
- * 使用現代 Fetch API 與 Async/Await 語法
  */
 
 const ResourceLoader = {
