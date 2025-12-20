@@ -31,7 +31,9 @@ export class Panel {
             lightX: 5,
             lightY: 5,
             lightZ: 5,
-            lightFollowCamera: false
+            lightZ: 5,
+            lightFollowCamera: false,
+            physicsMode: false // True = Window/Physics Mode (Fixed Screen Size), False = Zoom Mode (Fixed FOV)
         };
         
         const stored = localStorage.getItem('viewer_settings');
@@ -257,6 +259,10 @@ export class Panel {
                             <input type="checkbox" id="inp-showWebcam">
                             顯示視訊預覽 (Webcam Preview)
                         </label>
+                        <label class="toggle-label" title="開啟後，靠近螢幕時視野變廣（物體視覺上縮小）；關閉則為單純放大（Zoom）。">
+                            <input type="checkbox" id="inp-physicsMode">
+                            真實透視模式 (Physical Window)
+                        </label>
                     </div>
                     <div class="control-group">
                         <label style="color: #00bcd4;">光源設定 (Lighting)</label>
@@ -450,7 +456,8 @@ export class Panel {
         updateLerpUI();
 
         bindSelect('inp-webcamRes', 'webcamRes');
-        bindCheckbox('inp-showWebcam', 'showWebcam'); // New Binding
+        bindCheckbox('inp-showWebcam', 'showWebcam');
+        bindCheckbox('inp-physicsMode', 'physicsMode'); // Physics Mode
         bindCheckbox('inp-crosshair', 'showCrosshair');
 
         this.element.querySelector('#btn-reset').addEventListener('click', () => {
