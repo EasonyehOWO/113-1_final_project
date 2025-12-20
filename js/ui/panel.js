@@ -178,7 +178,7 @@ export class Panel {
                         <label style="color: #00bcd4;">螢幕校準 (Screen Calibration)</label>
                         <div title="請拿實體尺量測螢幕上的紅線刻度 (每格 5cm)">
                             <label>像素密度 (PPI): <span id="val-calibrationPPI"></span></label>
-                            <input type="range" id="inp-calibrationPPI" min="50" max="400" step="1">
+                            <input type="range" id="inp-calibrationPPI" min="10" max="400" step="1">
                             <small style="color:#aaa; display:block; margin-top:2px;">按住滑桿顯示校準尺 (Hold to Calibrate)</small>
                         </div>
                     </div>
