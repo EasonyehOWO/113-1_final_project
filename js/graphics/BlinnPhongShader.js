@@ -15,7 +15,8 @@ export const BlinnPhongShader = {
         uLightIntensity: { value: 1.0 },
         uEmissive: { value: new THREE.Color(0x000000) },
         uEmissiveMap: { value: null },
-        uHasEmissiveMap: { value: false }
+        uHasEmissiveMap: { value: false },
+        uEmissiveIntensity: { value: 1.0 }
     },
 
     vertexShader: `
@@ -48,6 +49,7 @@ export const BlinnPhongShader = {
         uniform vec3 uEmissive;
         uniform sampler2D uEmissiveMap;
         uniform bool uHasEmissiveMap;
+        uniform float uEmissiveIntensity;
 
         varying vec3 vNormal;
         varying vec3 vPosition;
@@ -100,6 +102,7 @@ export const BlinnPhongShader = {
                 vec4 emissiveTex = texture2D(uEmissiveMap, vUv);
                 emissive = emissiveTex.rgb;
             }
+            emissive *= uEmissiveIntensity;
 
             vec3 finalColor = ambient + diffuse + specular + emissive;
             gl_FragColor = vec4(finalColor, 1.0);

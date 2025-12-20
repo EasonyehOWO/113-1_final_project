@@ -208,37 +208,29 @@ export const GraphicsApp = {
 
             // 2. Add new model
             this.currentModel = gltf.scene;
-            
-            this.currentModel.traverse((child) => {
-                if (child.isMesh) {
-                    // Create a clone of the shader uniforms for this specific mesh
-                    const newUniforms = THREE.UniformsUtils.clone(BlinnPhongShader.uniforms);
-                    
-                    // 1. Preserve Texture if exists
-                    if (child.material.map) {
-                        newUniforms.uTexture.value = child.material.map;
-                        newUniforms.uHasTexture.value = true;
-                    } 
-                    // 2. Preserve Color if no texture but has base color (Simple approximation)
-                    else if (child.material.color) {
-                        newUniforms.uColor.value = child.material.color;
-                        newUniforms.uHasTexture.value = false;
-                    }
 
-                    // 3. Extract Roughness (PBR)
-                    if (child.material.roughness !== undefined) {
-                        newUniforms.uRoughness.value = child.material.roughness;
-                    } else {
-                        newUniforms.uRoughness.value = 0.5; // Default if undefined
-                    }
-
-                    child.material = new THREE.ShaderMaterial({
-                        uniforms: newUniforms,
-                        vertexShader: BlinnPhongShader.vertexShader,
-                        fragmentShader: BlinnPhongShader.fragmentShader
-                    });
-                }
+            // --- Auto-Detect Lights ---
+            let hasInternalLights = false;
+            this.currentModel.traverse((node) => {
+                if (node.isLight) hasInternalLights = true;
             });
+
+            console.log("Model Internal Lights Detected:", hasInternalLights);
+
+            if (hasInternalLights) {
+                // If lights exist, use them. Disable custom light.
+                this.settings.lightEnabled = false;
+                console.log("-> Using Model Lights. Disabling Custom Shader.");
+                // Ensure Custom Light is OFF
+                if(this.customPointLight) this.customPointLight.visible = false;
+            } else {
+                // If no lights, enable custom light and shader.
+                this.settings.lightEnabled = true;
+                console.log("-> No Internal Lights. Enabling Custom Shader.");
+                // Apply Custom Shader
+                this.applyShaderToModel(this.currentModel);
+            }
+            // --------------------------
 
             this.transGroup.add(this.currentModel); // Add to TransGroup
             
@@ -498,8 +490,9 @@ export const GraphicsApp = {
     },
 
     applyShaderToModel: function(model) {
-         model.traverse((child) => {
+        model.traverse((child) => {
             if (child.isMesh) {
+                console.log(`Applying Shader to: ${child.name}, Mat:`, child.material);
                 const newUniforms = THREE.UniformsUtils.clone(BlinnPhongShader.uniforms);
                 
                 // 1. Preserve Texture
@@ -527,6 +520,10 @@ export const GraphicsApp = {
                 } else if (child.material.emissive) {
                     newUniforms.uEmissive.value = child.material.emissive;
                     newUniforms.uHasEmissiveMap.value = false;
+                }
+                
+                if (child.material.emissiveIntensity !== undefined) {
+                    newUniforms.uEmissiveIntensity.value = child.material.emissiveIntensity;
                 }
 
                 child.material = new THREE.ShaderMaterial({

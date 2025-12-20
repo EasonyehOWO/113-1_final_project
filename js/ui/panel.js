@@ -183,7 +183,10 @@ export class Panel {
             // Webcam Visibility
             const videoPreview = document.getElementById('video-preview');
             if (videoPreview) {
-                videoPreview.style.display = this.settings.showWebcam ? 'block' : 'none';
+                // videoPreview.style.display = this.settings.showWebcam ? 'block' : 'none';
+                // don't use display none to hide it; otherwise the webcam will stop working
+                videoPreview.style.opacity = this.settings.showWebcam ? 1 : 0;
+                videoPreview.style.pointerEvents = this.settings.showWebcam ? 'auto' : 'none';
             }
         };
 
