@@ -30,7 +30,15 @@ export const GraphicsApp = {
         lightZ: 5,
         lightZ: 5,
         lightFollowCamera: false,
-        physicsMode: false
+        physicsMode: false,
+        
+        // Fog & Distance
+        fogNear: 5.0,
+        fogFar: 20.0,
+        cameraFar: 1000.0,
+        
+        // Advanced
+        visualConvergenceMode: false
     },
 
     updateSettings: function(newSettings) {
@@ -50,6 +58,16 @@ export const GraphicsApp = {
         }
         if (newSettings.stabilization !== undefined) {
              this.lerpFactor = newSettings.stabilization ? (newSettings.lerpFactor || 0.1) : 1.0;
+        }
+        
+        // Apply Fog & Distance
+        if (this.scene && this.scene.fog) {
+            if (newSettings.fogNear !== undefined) this.scene.fog.near = newSettings.fogNear;
+            if (newSettings.fogFar !== undefined) this.scene.fog.far = newSettings.fogFar;
+        }
+        if (this.camera && newSettings.cameraFar !== undefined) {
+            this.camera.far = newSettings.cameraFar;
+            this.camera.updateProjectionMatrix();
         }
     },
 
@@ -81,7 +99,7 @@ export const GraphicsApp = {
         // 1. Scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x000000);
-        this.scene.fog = new THREE.Fog(0x000000, 5, 20);
+        this.scene.fog = new THREE.Fog(0x000000, this.settings.fogNear, this.settings.fogFar);
 
         // --- World Hierarchy Setup (Inverse Transform) ---
         // Scene -> RotGroup (Simulate Head Rotation) -> TransGroup (Simulate Walking) -> Objects
