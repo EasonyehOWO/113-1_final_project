@@ -2,595 +2,406 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { BlinnPhongShader } from './BlinnPhongShader.js';
 
+/**
+ * GraphicsApp
+ * 負責主要的 3D 場景渲染、相機控制與物理透視計算。
+ */
 export const GraphicsApp = {
+    // --- 核心元件 (Core Components) ---
     scene: null,
     camera: null,
     renderer: null,
     raycaster: null,
+    loader: null,
 
-    // Scene Objects
+    // --- 場景物件 (Scene Objects) ---
+    rotGroup: null,   // 旋轉群組 (模擬頭部轉動造成的視差)
+    transGroup: null, // 位移群組 (模擬身體移動)
+    currentModel: null,
+    customPointLight: null, // 自訂光源 (當模型無光源時使用)
+
+    // 輔助線與標記
     floorGrid: null,
-    backWallGrid: null,
+    wallGrid: null,
     hitMarker: null,
     floorProjectionLine: null,
     wallProjectionLine: null,
     raycastTargets: [],
 
-    // Settings (Defaults)
+    // --- 設定值 (Settings) ---
     settings: {
+        // 追蹤靈敏度
         sensitivityX: 12.0,
         sensitivityY: 12.0,
-        sensitivityZ: 1.0,
-        convergence: 0.0,
-        showCrosshair: true,
+        sensitivityZ: 1.0,  // 深度靈敏度 (基於臉部寬度比)
+        invertX: false,
+        invertY: false,
+        
+        // 偏移校正
         offsetX: 0,
         offsetY: 0,
-        lightX: 5,
-        lightY: 5,
-        lightZ: 5,
-        lightZ: 5,
+
+        // 視覺模式
+        visualConvergenceMode: false, // 視覺收斂模式 (全像投影/Orbit)
+        physicsMode: false,           // 真實透視模式 (Real Scale)
+        convergence: 0.0,             // 舊版 Zoom 模式的收斂參數 (Legacy)
+        stabilization: true,          // 是否開啟平滑 (Lerp)
+        
+        // 顯示設定
+        showCrosshair: true,
+        rendererScale: 0.5,           // 解析度縮放 (效能優化)
+
+        // 光源設定
+        lightEnabled: true,
+        lightFollowCamera: false,
         lightIntensity: 1.0,
         lightColor: '#ffffff',
-        
-        lightFollowCamera: false,
-        physicsMode: false,
-        
-        // Fog & Distance
-        fogNear: 5.0,
-        fogFar: 20.0,
-        // Fog & Distance
-        fogNear: 5.0,
-        fogFar: 20.0,
+        lightX: 5, lightY: 5, lightZ: 5,
+
+        // 距離與霧氣
+        cameraNear: 0.1,    // 近截面 (可調整以切除過近物體)
         cameraFar: 1000.0,
-        cameraNear: 0.1,
-        
-        // Calibration
-        calibrationPPI: 96,
-        
-        // Advanced
-        visualConvergenceMode: false
+        fogNear: 5.0,
+        fogFar: 20.0,
+
+        // 校準參數
+        calibrationPPI: 96, // 螢幕像素密度
+        lerpFactor: 0.1     // 預設平滑係數
     },
 
-    updateSettings: function(newSettings) {
-        // ... (existing updateSettings code is fine as Object.assign handles merging) ...
-        Object.assign(this.settings, newSettings);
+    // --- 狀態變數 (State) ---
+    targetCamPos: new THREE.Vector3(0, 0, 5), // 目標相機位置 (用於平滑插值)
+    lastX: 0, lastY: 0, lastZ: 5,             // 上一次的追蹤座標
+    lerpFactor: 0.1,                          // 當前使用的平滑係數 (可變)
 
-        // Apply Renderer Scale
-        if (this.renderer && newSettings.rendererScale) {
-            this.renderer.setPixelRatio(newSettings.rendererScale);
-        }
-
-        // Apply Crosshair visibility immediately
-        if (!newSettings.showCrosshair && this.hitMarker) {
-             this.hitMarker.visible = false;
-             if(this.floorProjectionLine) this.floorProjectionLine.visible = false;
-             if(this.wallProjectionLine) this.wallProjectionLine.visible = false;
-        }
-        if (newSettings.stabilization !== undefined) {
-             this.lerpFactor = newSettings.stabilization ? (newSettings.lerpFactor || 0.1) : 1.0;
-        }
-        
-        // Apply Fog & Distance
-        if (this.scene && this.scene.fog) {
-            if (newSettings.fogNear !== undefined) this.scene.fog.near = newSettings.fogNear;
-            if (newSettings.fogFar !== undefined) this.scene.fog.far = newSettings.fogFar;
-        }
-        if (this.camera && newSettings.cameraFar !== undefined) {
-            this.camera.far = newSettings.cameraFar;
-            this.camera.updateProjectionMatrix();
-        }
-        if (this.camera && newSettings.cameraNear !== undefined) {
-            this.camera.near = newSettings.cameraNear;
-            this.camera.updateProjectionMatrix();
-        }
-    },
-
-    // Camera State (Smoothing)
-    targetCamPos: new THREE.Vector3(0, 0, 5),
-    
-    // Smoothing & Tracking State
-    lastX: 0,
-    lastY: 0,
-    lastZ: 5,
-    lerpFactor: 0.1, // Default smoothing
-
-    targetCamRotZ: 0,
-    
-    // Manual Controls (Keyboard)
+    // 手動控制 (鍵盤)
     keyboardState: {},
-    manualPos: new THREE.Vector3(0, 0, 0),
-    manualRot: new THREE.Vector3(0, 0, 0),
+    manualPos: new THREE.Vector3(0, 0, 0),    // 虛擬角色的位移
+    manualRot: new THREE.Vector3(0, 0, 0),    // 虛擬角色的旋轉
     MANUAL_SPEED: 0.1,
-    MANUAL_ROT_SPEED: 0.02,
+    MANUAL_ROT_SPEED: 0.01,
 
-    // Constants
-    FLOOR_Y: -4,
-    WALL_Z: -8,
+    // 常數定義
+    CONSTANTS: {
+        FLOOR_Y: -4,
+        WALL_Z: -8,
+        PIVOT_Z: 5.0,        // 旋轉軸心深度 (對應相機預設距離)
+        REF_ViewDist_dm: 6.0 // 標準舒適觀看距離 (60cm = 6dm)
+    },
+
+    // ========================================================================
+    // 初始化與設置 (Initialization & Setup)
+    // ========================================================================
 
     init: function(containerId) {
         const container = document.getElementById(containerId);
 
-        // 1. Scene
+        // 1. 建立場景 (Scene)
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x000000);
         this.scene.fog = new THREE.Fog(0x000000, this.settings.fogNear, this.settings.fogFar);
 
-        // --- World Hierarchy Setup (Inverse Transform) ---
-        // Scene -> RotGroup (Simulate Head Rotation) -> TransGroup (Simulate Walking) -> Objects
+        // 2. 建立層級結構 (Hierarchy)
+        // 為了模擬「人在走動」，我們反向移動整個世界 (World)。
+        // 結構：Scene -> RotGroup (旋轉) -> TransGroup (位移) -> 物件
         this.rotGroup = new THREE.Group();
         this.transGroup = new THREE.Group();
-        
         this.rotGroup.add(this.transGroup);
         this.scene.add(this.rotGroup);
-        // -------------------------------------------------
 
-        // 2. Camera (Tracks Physical Head Only)
-        // 2. Camera (Tracks Physical Head Only)
-        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, this.settings.cameraNear, this.settings.cameraFar);
-        this.camera.position.z = 5;
+        // 3. 建立相機 (Camera)
+        // 這裡只負責追蹤「真實頭部」的位置。
+        this.camera = new THREE.PerspectiveCamera(
+            60, 
+            window.innerWidth / window.innerHeight, 
+            this.settings.cameraNear, 
+            this.settings.cameraFar
+        );
         this.camera.position.z = 5;
         this.targetCamPos.copy(this.camera.position);
 
-        // 3. Renderer
+        // 4. 建立渲染器 (Renderer)
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(0.5); 
+        this.renderer.setPixelRatio(this.settings.rendererScale || 0.5);
         container.appendChild(this.renderer.domElement);
 
-        // 4. Raycaster
+        // 5. 初始化工具
         this.raycaster = new THREE.Raycaster();
+        this.loader = new GLTFLoader();
 
-        // 5. Build Environment (Add to TransGroup)
+        // 6. 建置環境與載入模型
         this.buildEnvironment();
+        this.loadModel(); // 若有預設模型路徑則載入
 
-        // 6. Load Model (Add to TransGroup)
-        this.loadModel();
-
-        // 7. Event Listeners
+        // 7. 事件監聽
         window.addEventListener('resize', () => this.onWindowResize(), false);
         window.addEventListener('keydown', (e) => this.onKeyDown(e), false);
         window.addEventListener('keyup', (e) => this.onKeyUp(e), false);
-
-        // 8. Start Loop
-        this.animate();
-        console.log("GraphicsApp Initialized (World-Move Mode).");
-    },
-
-    onKeyDown: function(event) {
-        this.keyboardState[event.key.toLowerCase()] = true;
-        this.keyboardState[event.code] = true; // Support Arrow keys
-    },
-
-    onKeyUp: function(event) {
-        this.keyboardState[event.key.toLowerCase()] = false;
-        this.keyboardState[event.code] = false;
-    },
-
-
-    buildEnvironment: function() {
-        // Floor Grid
-        this.floorGrid = new THREE.GridHelper(20, 20, 0x00ffff, 0x444444);
-        this.floorGrid.position.y = this.FLOOR_Y;
-        this.transGroup.add(this.floorGrid);
-
-        // Wall Grid (Back)
-        this.wallGrid = new THREE.GridHelper(20, 20, 0xff00ff, 0x444444);
-        this.wallGrid.rotation.x = Math.PI / 2;
-        this.wallGrid.position.z = this.WALL_Z;
-        this.wallGrid.position.y = 0;
-        this.transGroup.add(this.wallGrid);
-
-        // Invisible Raycast Planes
-        const floorPlaneGeo = new THREE.PlaneGeometry(20, 20);
-        const floorPlaneMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
-        const floorPlane = new THREE.Mesh(floorPlaneGeo, floorPlaneMat);
-        floorPlane.position.y = this.FLOOR_Y;
-        floorPlane.rotation.x = -Math.PI / 2;
-        this.transGroup.add(floorPlane);
-
-        const backWallPlaneGeo = new THREE.PlaneGeometry(20, 20);
-        const backWallPlane = new THREE.Mesh(backWallPlaneGeo, floorPlaneMat);
-        backWallPlane.position.z = this.WALL_Z;
-        backWallPlane.position.y = this.wallGrid.position.y; 
-        this.transGroup.add(backWallPlane);
-
-
-
-        this.raycastTargets = [floorPlane, backWallPlane];
-
-        // Hit Marker (Red Dot)
-        const hitMarkerGeo = new THREE.SphereGeometry(0.05, 16, 8);
-        const hitMarkerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        this.hitMarker = new THREE.Mesh(hitMarkerGeo, hitMarkerMat);
-        this.hitMarker.visible = false;
-        this.scene.add(this.hitMarker);
-
-        // Projection Lines
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
-        
-        const floorLineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-        this.floorProjectionLine = new THREE.Line(floorLineGeo, lineMaterial);
-        this.floorProjectionLine.visible = false;
-        this.scene.add(this.floorProjectionLine);
-
-        const wallLineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-        this.wallProjectionLine = new THREE.Line(wallLineGeo, lineMaterial);
-        this.wallProjectionLine.visible = false;
-        this.scene.add(this.wallProjectionLine);
-    },
-
-    loadModel: function() {
-        // Init Loader
-        this.loader = new GLTFLoader();
-        
-        // Initial Load (from PHP variable)
-        if (typeof TARGET_MODEL_PATH !== 'undefined' && TARGET_MODEL_PATH) {
-            console.log("Loading initial model:", TARGET_MODEL_PATH);
-            this.loadGLTF(TARGET_MODEL_PATH);
-        } else {
-            console.warn("No TARGET_MODEL_PATH defined.");
-        }
-
-        // Setup Drag & Drop
         this.setupDragAndDrop();
+
+        console.log("GraphicsApp Initialized.");
+        this.animate(); // 開始渲染迴圈
     },
 
-    loadGLTF: function(url) {
-        // Show loading indicator if we had one
-        console.log(`Loading GLTF: ${url}`);
+    /**
+     * 更新設定值
+     * 當使用者調整控制面板時呼叫此函式
+     */
+    updateSettings: function(newSettings) {
+        Object.assign(this.settings, newSettings);
 
-        this.loader.load(url, (gltf) => {
-            // 1. Remove old model if exists
-            if (this.currentModel) {
-                this.transGroup.remove(this.currentModel); // Remove from TransGroup
-                // Traverse and dispose geometry/material to avoid leak?
-                this.currentModel.traverse((child) => {
-                    if (child.isMesh) {
-                        child.geometry.dispose();
-                        if (child.material) child.material.dispose();
-                    }
-                });
-            }
+        // 即時應用特定設定
+        if (this.renderer && newSettings.rendererScale) {
+            this.renderer.setPixelRatio(newSettings.rendererScale);
+        }
+        
+        // 更新 Lerp 平滑係數
+        if (this.settings.stabilization) {
+            // 如果只有 stabilization 切換，沒有傳入 lerpFactor，使用 0.1 預設
+            // 或者使用當前 settings 中的值
+            this.lerpFactor = newSettings.lerpFactor || this.settings.lerpFactor || 0.1;
+        } else {
+            this.lerpFactor = 1.0;
+        }
+        
+        // 更新霧氣與相機距離
+        if (this.scene && this.scene.fog) {
+            if (newSettings.fogNear !== undefined) this.scene.fog.near = newSettings.fogNear;
+            if (newSettings.fogFar !== undefined) this.scene.fog.far = newSettings.fogFar;
+        }
+        if (this.camera) {
+            let needsUpdate = false;
+            if (newSettings.cameraFar !== undefined) { this.camera.far = newSettings.cameraFar; needsUpdate = true; }
+            if (newSettings.cameraNear !== undefined) { this.camera.near = newSettings.cameraNear; needsUpdate = true; }
+            if (needsUpdate) this.camera.updateProjectionMatrix();
+        }
 
-            // 2. Add new model
-            this.currentModel = gltf.scene;
-
-            // --- Auto-Detect Lights ---
-            let hasInternalLights = false;
-            this.currentModel.traverse((node) => {
-                if (node.isLight) hasInternalLights = true;
-            });
-
-            console.log("Model Internal Lights Detected:", hasInternalLights);
-
-            if (hasInternalLights) {
-                // If lights exist, use them. Disable custom light.
-                this.settings.lightEnabled = false;
-                console.log("-> Using Model Lights. Disabling Custom Shader.");
-                // Ensure Custom Light is OFF
-                if(this.customPointLight) this.customPointLight.visible = false;
-            } else {
-                // If no lights, enable custom light and shader.
-                this.settings.lightEnabled = true;
-                console.log("-> No Internal Lights. Enabling Custom Shader.");
-                // Apply Custom Shader
-                this.applyShaderToModel(this.currentModel);
-            }
-            // --------------------------
-
-            this.transGroup.add(this.currentModel); // Add to TransGroup
-            
-            // 3. Auto-scale and center
-            const box = new THREE.Box3().setFromObject(this.currentModel);
-            const size = box.getSize(new THREE.Vector3());
-            const center = box.getCenter(new THREE.Vector3());
-
-            // Normalize size to fit in a 4x4x4 box approx
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const scale = 4.0 / maxDim;
-            this.currentModel.scale.setScalar(scale);
-
-            // Re-center
-            this.currentModel.position.x = -center.x * scale;
-            this.currentModel.position.y = -center.y * scale;
-            this.currentModel.position.z = -center.z * scale;
-
-            console.log("Model loaded and scaled.", { size, scale });
-
-        }, (xhr) => {
-            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-        }, (error) => {
-            console.error('An error happened loading GLTF:', error);
-            // Fallback to Cube if error
-            if (!this.currentModel) this.addFallbackCube();
-        });
+        // 隱藏/顯示輔助線
+        if (!this.settings.showCrosshair && this.hitMarker) {
+            this.hitMarker.visible = false;
+            this.floorProjectionLine.visible = false;
+            this.wallProjectionLine.visible = false;
+        }
     },
 
-    addFallbackCube: function() {
-        const geometry = new THREE.BoxGeometry(2, 2, 2);
-        const material = new THREE.MeshNormalMaterial();
-        this.currentModel = new THREE.Mesh(geometry, material);
-        this.transGroup.add(this.currentModel); // Add to TransGroup
-    },
+    // ========================================================================
+    // 臉部追蹤邏輯 (Face Tracking Logic)
+    // ========================================================================
 
-    setupDragAndDrop: function() {
-        const container = document.body;
-
-        container.addEventListener('dragover', (e) => {
-            e.preventDefault(); // Essential to allow drop
-            e.dataTransfer.dropEffect = 'copy';
-            container.style.opacity = '0.8'; // Visual cue
-        });
-
-        container.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            container.style.opacity = '1.0';
-        });
-
-        container.addEventListener('drop', (e) => {
-            e.preventDefault();
-            container.style.opacity = '1.0';
-
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-                const filename = file.name.toLowerCase();
-                
-                if (filename.endsWith('.glb') || filename.endsWith('.gltf')) {
-                    const url = URL.createObjectURL(file);
-                    console.log("Dropped file:", filename);
-                    this.loadGLTF(url);
-                } else {
-                    alert("只支援 .glb 或 .gltf 格式");
-                }
-            }
-        });
-    },
-
-    updateHeadData: function(data) {
+    /**
+     * 接收 FaceTracker 傳來的原始資料，轉換為 3D 空間座標
+     * @param {Object} data - { x, y, faceWidthRatio, face }
+     */
+    updateHeadData(data) {
+        if (!data || !data.face) return; // 確保有偵測到人臉
+        
         const { x, y, faceWidthRatio } = data;
-        
-        // DEBUG: Check for NaN issues
-        if (isNaN(x) || isNaN(y) || isNaN(faceWidthRatio)) {
-            console.warn("GraphicsApp received NaN data:", data);
-            return;
-        }
-        if (isNaN(this.settings.sensitivityX) || isNaN(this.settings.sensitivityZ)) {
-             console.warn("GraphicsApp settings have NaN:", this.settings);
-        }
 
-        // Validate Inputs
-        if (!data || !data.face) return;
-        
-        // --- PPI Correction for Sensitivity ---
-        // If "Physics Mode" is ON, screen is smaller in Units on high PPI.
-        // Sensitivity * Webcam Normalized (in [-1, 1]) -> Units.
-        // We want 1 Unit to represent same Physical Movement.
-        // So we scale output by (96 / PPI / 2).
+        // 1. PPI 校正係數
+        // Physics Mode 下，螢幕解析度越高(PPI高)，同樣的像素移動代表的物理距離越短。
+        // 我們將其轉換為虛擬世界的公寸單位 (dm)。
         const ppi = this.settings.calibrationPPI || 96;
-        const ppiFactor = 48.0 / ppi;
-        
-        const face = data.face;
-        // const { x, y, faceWidthRatio } = data; // Already declared above
-        
-        // 1. Calculate Target Position (Raw Sensitivity)
-        // Note: Face X/Y are in pixels relative to video center
+        const ppiCorrection = 48.0 / ppi; // 基於標準 96DPI 的縮放與半寬修正
+
+        // 2. 計算目標 X, Y (加上靈敏度與偏移)
         let targetX = (x * this.settings.sensitivityX) + (this.settings.offsetX || 0);
         let targetY = (y * this.settings.sensitivityY) + (this.settings.offsetY || 0);
 
-        // Apply PPI correction
-        targetX *= ppiFactor;
-        targetY *= ppiFactor;
-        
-        // Invert X/Y based on settings
+        // 應用 PPI 修正
+        targetX *= ppiCorrection;
+        targetY *= ppiCorrection;
+
+        // 軸向反轉
         if (this.settings.invertX) targetX = -targetX;
         if (this.settings.invertY) targetY = -targetY;
 
-        // Z: Pinhole Model approximation (針孔成像原理)
-        // Formula: h / f = H / D  =>  D = f * (H / h)
-        // - D: Distance from camera (Z)
-        // - f: Focal length of the webcam
-        // - H: Real face width (avg 14-16cm)
-        // - h: Sensor face width (in pixels or ratio)
-        // (ref: https://gemini.google.com/share/ee6aa65f3b60 )
-        //
-        // Simplified: Z = sensitivityZ / WidthRatio
-        // - Where 'sensitivityZ' 
-        //   = (RealFaceBoxWidth (dm)) / 2 / tan(HorizontalFoV / 2)
-        // - 1dm = 10cm = grid unit in the world
-        
-        // Z = FocalConstant / FaceWidthRatio
-        const targetZ = this.settings.sensitivityZ / Math.max(0.01, faceWidthRatio); 
+        // 3. 計算目標 Z (深度估算)
+        // 利用針孔成像原理: D = f * (H / h)
+        // 簡化為: Z = SensitivityZ / FaceWidthRatio
+        const targetZ = this.settings.sensitivityZ / Math.max(0.01, faceWidthRatio);
 
-        // Apply Smoothing (Lerp)
+        // 4. 平滑化處理 (Lerp)
         this.lastX += (targetX - this.lastX) * this.lerpFactor;
         this.lastY += (targetY - this.lastY) * this.lerpFactor;
         this.lastZ += (targetZ - this.lastZ) * this.lerpFactor;
-        
-        // Clamp Z to reasonable range
+
+        // 限制 Z 軸範圍避免破圖
         const clampedZ = Math.max(1.0, Math.min(this.lastZ, 15.0));
 
         this.targetCamPos.set(this.lastX, this.lastY, clampedZ);
         
-        // Update UI Debug
-        if(document.getElementById('head-x')) {
-            document.getElementById('head-x').innerText = this.lastX.toFixed(2);
-            document.getElementById('head-y').innerText = this.lastY.toFixed(2);
-        }
+        // 更新 UI 數值顯示
+        const debugX = document.getElementById('head-x');
+        const debugY = document.getElementById('head-y');
+        if(debugX) debugX.innerText = this.lastX.toFixed(2);
+        if(debugY) debugY.innerText = this.lastY.toFixed(2);
     },
 
-    onWindowResize: function() {
-        if (!this.camera || !this.renderer) return;
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-    },
+    // ========================================================================
+    // 渲染迴圈 (Render Loop)
+    // ========================================================================
 
-    animate: function() {
+    animate() {
         requestAnimationFrame(() => this.animate());
         if (!this.camera || !this.renderer) return;
 
-        // --- Keyboard Controls (Update Manual State) ---
-        
-        // 1. Calculate Vectors based on Manual Yaw (Y-rotation)
+        // 1. 更新手動控制 (鍵盤移動)
+        this.updateManualControls();
+
+        // 2. 更新相機位置 (追蹤頭部)
+        // 使用 Lerp 平滑移動到目標位置
+        this.camera.position.lerp(this.targetCamPos, 0.1);
+
+        // 3. 計算並更新投影矩陣 (透視核心)
+        this.updateCameraProjection();
+
+        // 4. 更新 Shader Uniforms (光源與視角)
+        this.updateShaderUniforms();
+
+        // 5. 更新互動游標 (Raycasting)
+        if (this.settings.showCrosshair) {
+            this.updateCrosshair();
+        }
+
+        this.renderer.render(this.scene, this.camera);
+    },
+
+    /**
+     * 處理鍵盤輸入，移動虛擬世界 (World)
+     * 這模擬了使用者在虛擬空間中的行走
+     */
+    updateManualControls: function() {
+        // --- 計算移動向量 (基於目前的 Y 軸旋轉) ---
         const yaw = this.manualRot.y;
-        
-        // Fixed Math: Rotate (0,0,-1) by Yaw
-        // x = -sin(yaw), z = -cos(yaw)
         const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-        
-        // Fixed Math: Rotate (1,0,0) by Yaw
-        // x = cos(yaw), z = -sin(yaw)
-        const moveRight = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)); 
+        const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
 
-        // 2. Translation
-        if (this.keyboardState['w']) this.manualPos.addScaledVector(forward, this.MANUAL_SPEED);
-        if (this.keyboardState['s']) this.manualPos.addScaledVector(forward, -this.MANUAL_SPEED);
-        if (this.keyboardState['a']) this.manualPos.addScaledVector(moveRight, -this.MANUAL_SPEED);
-        if (this.keyboardState['d']) this.manualPos.addScaledVector(moveRight, this.MANUAL_SPEED);
-        
-        if (this.keyboardState['t']) this.manualPos.y += this.MANUAL_SPEED;
-        if (this.keyboardState['b']) this.manualPos.y -= this.MANUAL_SPEED;
+        // --- 處理位移 ---
+        const speed = this.MANUAL_SPEED;
+        const ks = this.keyboardState;
 
-        if (this.keyboardState['ArrowUp'])    this.manualRot.x += this.MANUAL_ROT_SPEED;
-        if (this.keyboardState['ArrowDown'])  this.manualRot.x -= this.MANUAL_ROT_SPEED;
-        if (this.keyboardState['ArrowLeft'])  this.manualRot.y += this.MANUAL_ROT_SPEED;
-        if (this.keyboardState['ArrowRight']) this.manualRot.y -= this.MANUAL_ROT_SPEED;
+        if (ks['w']) this.manualPos.addScaledVector(forward, speed);
+        if (ks['s']) this.manualPos.addScaledVector(forward, -speed);
+        if (ks['a']) this.manualPos.addScaledVector(right, -speed);
+        if (ks['d']) this.manualPos.addScaledVector(right, speed);
+        if (ks['t']) this.manualPos.y += speed; // 上升
+        if (ks['b']) this.manualPos.y -= speed; // 下降
 
-        // Resets
-        if (this.keyboardState['i']) this.manualPos.y = 0;
-        if (this.keyboardState['o']) { this.manualPos.x = 0; this.manualPos.z = 0; }
-        if (this.keyboardState['0']) this.manualRot.set(0, 0, 0);
+        // --- 處理旋轉 ---
+        const rotSpeed = this.MANUAL_ROT_SPEED;
+        if (ks['arrowup'])    this.manualRot.x += rotSpeed;
+        if (ks['arrowdown'])  this.manualRot.x -= rotSpeed;
+        if (ks['arrowleft'])  this.manualRot.y += rotSpeed;
+        if (ks['arrowright']) this.manualRot.y -= rotSpeed;
 
-        // --- Apply Inverse Transforms to World ---
-        
-        // 1. Pivot Adjustment: Move RotGroup to Camera Z-Plane
-        const PIVOT_Z = 5.0; // Matches Camera Base Z
-        this.rotGroup.position.set(0, 0, PIVOT_Z);
+        // --- 重置功能 ---
+        if (ks['i']) this.manualPos.y = 0;
+        if (ks['o']) { this.manualPos.x = 0; this.manualPos.z = 0; }
+        if (ks['0']) this.manualRot.set(0, 0, 0);
 
-        // 2. Rotation Group: Inverse of Player Rotation
+        // --- 應用逆向變換到 World Groups ---
+        // 1. Pivot 調整: 將旋轉中心移至相機深度平面
+        this.rotGroup.position.set(0, 0, this.CONSTANTS.PIVOT_Z);
+
+        // 2. 應用旋轉 (反向)
         this.rotGroup.rotation.y = -this.manualRot.y;
         this.rotGroup.rotation.x = -this.manualRot.x;
-        
-        // 3. Translation Group: Inverse of (Player Position + Pivot Compensate)
-        // We move the world back by PIVOT_Z so that (0,0,0) is at the Pivot
+
+        // 3. 應用位移 (反向並補償 Pivot)
         this.transGroup.position.x = -this.manualPos.x;
         this.transGroup.position.y = -this.manualPos.y;
-        this.transGroup.position.z = -this.manualPos.z - PIVOT_Z;
-        // -----------------------------------------
+        this.transGroup.position.z = -this.manualPos.z - this.CONSTANTS.PIVOT_Z;
+    },
 
-        // 3. Face Tracking Update (Physical Camera Move)
-        const lerpFactor = 0.1;
-        this.camera.position.lerp(this.targetCamPos, lerpFactor);
-        
+    /**
+     * 核心透視邏輯
+     * 根據模式 (Convergence / Window) 與校準 (Physics / Zoom) 計算 projectionMatrix
+     */
+    updateCameraProjection: function() {
+        // 共通參數：計算螢幕的虛擬物理尺寸 (dm)
+        // 1 dm = 10 cm = 虛擬世界 1 單位
+        const ppi = this.settings.calibrationPPI || 96;
+        const ppcm = ppi / 2.54;
+        const screenH_virtual = (window.innerHeight / ppcm) / 10.0;
+        const screenW_virtual = (window.innerWidth / ppcm) / 10.0;
+        const halfH = screenH_virtual / 2.0;
+        const halfW = screenW_virtual / 2.0;
+        const z = Math.max(0.1, this.camera.position.z); // 眼睛到螢幕的距離
+
+        // --- 模式 A: 視覺收斂模式 (Hologram / Orbit) ---
         if (this.settings.visualConvergenceMode) {
-             // --- Mode 2: Visual Convergence (Hologram / Orbit) ---
-             // Camera stays at head position but rotates to look at target (0,0,0)
-             // No off-axis projection needed (standard symmetric frustum)
-             this.camera.lookAt(0, 0, 0);
-             
-             // Standard Perspective Projection
-             // We just need to ensure aspect ratio is correct. 
-             // onWindowResize handles standard updateProjectionMatrix, 
-             // but here we are overriding projectionMatrix manually in the other branch.
-             // So we must reset it here to be safe.
-             
-             // PPI & Calibration Commons
-             const ppi = this.settings.calibrationPPI || 96;
-             const ppcm = ppi / 2.54;
-             // Virtual Screen Height (in decimeters, 1 unit = 10cm)
-             // ScreenHeightPixels / PPCM / 10
-             const screenH_dm = (window.innerHeight / ppcm) / 10.0;
-             const halfH_dm = screenH_dm / 2.0;
+            // 相機注視中心 (0,0,0)，形成圍繞效果
+            this.camera.lookAt(0, 0, 0);
 
-             // Calculate Calibrated FOV for Reference Distance
-             const REF_DIST_DM = 6.0; // 60cm standard comfortable viewing distance
-             const calibratedFOV = THREE.MathUtils.RAD2DEG * 2 * Math.atan(halfH_dm / REF_DIST_DM);
+            // 計算 FOV (視野角度)
+            if (this.settings.physicsMode) {
+                // 真實透視: 在距離 Z 處填滿螢幕高度
+                // tan(FOV/2) = (ScreenH / 2) / Z
+                const fovRad = 2 * Math.atan(halfH / z);
+                this.camera.fov = THREE.MathUtils.RAD2DEG * fovRad;
+            } else {
+                // Zoom 模式: 在標準距離 (60cm) 處填滿螢幕
+                // 這確保了跨裝置的視覺比例一致性 (Comfortable FOV)
+                const fovRad = 2 * Math.atan(halfH / this.CONSTANTS.REF_ViewDist_dm);
+                this.camera.fov = THREE.MathUtils.RAD2DEG * fovRad;
+            }
+            this.camera.updateProjectionMatrix();
 
-             if (this.settings.physicsMode) {
-                 const z = Math.max(0.1, this.camera.position.z);
-                 
-                 // Calculate FOV to match Screen Height at Distance Z
-                 // tan(fov/2) = halfH / z
-                 const fovRad = 2 * Math.atan(halfH_dm / z);
-                 
-                 this.camera.fov = THREE.MathUtils.RAD2DEG * fovRad;
-             } else {
-                 // ** Zoom Mode (Calibrated) **
-                 // Use the FOV that feels "Corret" at 60cm distance regardless of screen size.
-                 this.camera.fov = calibratedFOV;
-             }
-             
-             this.camera.updateProjectionMatrix();
-
-        } else {
-            // --- Mode 1: Window Mode (Off-axis Projection) ---
-            // Camera Rotation is ALWAYS 0 (Perpendicular to Screen)
+        } 
+        // --- 模式 B: 視窗模式 (Window / Off-axis) ---
+        else {
+            // 相機永遠朝前 (不旋轉)
             this.camera.rotation.set(0, 0, 0);
 
             const near = this.camera.near;
             const far = this.camera.far;
-            
-            let l, r, t, b; // Frustum planes
-            
-            // Common Calibration Data
-            const ppi = this.settings.calibrationPPI || 96;
-            const ppcm = ppi / 2.54;
-            const screenW_dm = (window.innerWidth / ppcm) / 10.0;
-            const screenH_dm = (window.innerHeight / ppcm) / 10.0;
-            const halfW = screenW_dm / 2;
-            const halfH = screenH_dm / 2;
-             
+            let l, r, t, b; // Frustum Planes (視錐體邊界)
+
+            // 計算視錐體形狀
             if (this.settings.physicsMode) {
-                 // ** Calibration / True Physics Mode **
-                 // Uses PPI to calculate exact physical size of the window
-                 
-                 const z = Math.max(0.1, this.camera.position.z);
-                 
-                 // Camera Position (Head) relative to Screen Center (0,0,0)
-                 const cx = this.camera.position.x;
-                 const cy = this.camera.position.y;
-                 const cz = z; // Distance to screen
-                 
-                 // Direct Off-axis Calculation (Similar Triangles)
-                 t = ((halfH - cy) * near) / cz;
-                 b = ((-halfH - cy) * near) / cz;
-                 r = ((halfW - cx) * near) / cz;
-                 l = ((-halfW - cx) * near) / cz;
-                 
-                 // DEBUG: Log Frustum Width (Verify Physics)
-                 // Throttle to ~1Hz (assuming 60fps)
-                 if (!this._debugFrameCnt) this._debugFrameCnt = 0;
-                 if (this._debugFrameCnt++ % 60 === 0) {
-                     const fWidth = r - l;
-                     const fHeight = t - b;
-                     console.log(`[PhysicsCheck] Dist: ${z.toFixed(2)} | ScreenW(dm): ${screenW_dm.toFixed(3)} | NearWidth: ${fWidth.toFixed(5)}`);
-                 }
-                 
-                 this.camera.projectionMatrix.makePerspective(l, r, t, b, near, far);
-                 
+                // --- 真實透視 (Off-axis Projection) ---
+                // 直接連結「眼睛位置」與「螢幕四角」
+                const cx = this.camera.position.x;
+                const cy = this.camera.position.y;
+                const cz = z;
+
+                // 相似三角形公式: top = (ScreenTop - CanY) * (Near / Dist)
+                t = ((halfH - cy) * near) / cz;
+                b = ((-halfH - cy) * near) / cz;
+                r = ((halfW - cx) * near) / cz;
+                l = ((-halfW - cx) * near) / cz;
+
+                // 除錯日誌 (每秒一次)
+                if (!this._debugFrameCnt) this._debugFrameCnt = 0;
+                if (this._debugFrameCnt++ % 60 === 0) {
+                    // console.log(`[Physics] Dist:${z.toFixed(2)} NearW:${(r-l).toFixed(4)} ScreenW:${screenW_virtual.toFixed(3)}`);
+                }
+
+                this.camera.projectionMatrix.makePerspective(l, r, t, b, near, far);
+
             } else {
-                // ** Zoom Mode (Calibrated Legacy Mode) **
-                // Uses Fixed FOV + Frustum Shift
+                // --- Zoom 模式 (Legacy / Pinhole) ---
+                // 固定舒適 FOV，並加上簡單的 Frustum Shift 模擬偏移
                 
-                // Calculate Calibrated FOV for Reference Distance (60cm)
-                const REF_DIST_DM = 6.0; 
-                const calibratedFOV = THREE.MathUtils.RAD2DEG * 2 * Math.atan(halfH / REF_DIST_DM);
-                
+                // 1. 設定舒適 FOV
+                const calibratedFOV = THREE.MathUtils.RAD2DEG * 2 * Math.atan(halfH / this.CONSTANTS.REF_ViewDist_dm);
                 this.camera.fov = calibratedFOV;
+
+                // 2. 計算 Frustum Shift (模擬視角偏移)
+                // 根據收斂參數調整偏移量
+                const frustumShift = (1.0 - this.settings.convergence);
                 
-                const convergence = this.settings.convergence;
-                const frustumShift = (1.0 - convergence);
-                
+                // 重新計算邊界
                 let top = near * Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * this.camera.fov);
                 let bottom = -top;
                 let right = top * this.camera.aspect;
                 let left = -right;
-        
-                const z = Math.max(0.1, this.camera.position.z);
-                
+
+                // 偏移量
                 const shiftX = (this.camera.position.x / z) * near * frustumShift;
                 const shiftY = (this.camera.position.y / z) * near * frustumShift;
-        
+
                 this.camera.projectionMatrix.makePerspective(
                     left - shiftX, right - shiftX, 
                     top - shiftY, bottom - shiftY, 
@@ -598,133 +409,174 @@ export const GraphicsApp = {
                 );
             }
         }
+    },
 
-        // Update Shader Uniforms if model exists
-        if (this.currentModel) {
-            this.currentModel.traverse((child) => {
-                if (child.isMesh && child.material.uniforms) {
-                     // The Camera is physically at (HeadX...).
-                     // So we just pass the Camera Position.
-                     child.material.uniforms.uViewPos.value.copy(this.camera.position);
-                     // Update Light Settings
-                     const val = (this.settings.lightIntensity !== undefined) ? this.settings.lightIntensity : 1.0;
-                     const intensity = this.settings.lightEnabled ? val : 0.0;
-                     child.material.uniforms.uLightIntensity.value = intensity;
-                     
-                     // Light Color Update
-                     if (this.settings.lightColor) {
-                         child.material.uniforms.uLightColor.value.set(this.settings.lightColor);
-                     }
-                     
-                     child.material.uniforms.uLightPos.value.set(
-                         this.settings.lightX, 
-                         this.settings.lightY, 
-                         this.settings.lightZ
-                     );
-                     child.material.uniforms.uUseLightFollow.value = this.settings.lightFollowCamera;
-                }
-            });
-        }
-        
-        // --- Sync Real Light (Custom PointLight) ---
-        // Even if shader is unused (Standard Material), this light works.
+    updateShaderUniforms: function() {
+        if (!this.currentModel) return;
+
+        // 同步自訂光源 (PointLight)
         if (this.customPointLight) {
             this.customPointLight.visible = this.settings.lightEnabled;
-            // Update Intensity & Color
-            this.customPointLight.intensity = this.settings.lightIntensity !== undefined ? this.settings.lightIntensity : 1.0;
-            if (this.settings.lightColor) {
-                 this.customPointLight.color.set(this.settings.lightColor);
-            }
-            
-            // If Follow Camera
+            this.customPointLight.intensity = this.settings.lightIntensity;
+            if (this.settings.lightColor) this.customPointLight.color.set(this.settings.lightColor);
+
             if (this.settings.lightFollowCamera) {
-                // In world space, camera is at camera.position (Head), 
-                // Light is in TransGroup. TransGroup is transformed.
-                // We need Light relative to TransGroup to match Camera World Position?
-                // Actually, if we want Light to be at Camera:
-                // LightWorldPos = CameraWorldPos.
-                // LightLocalPos = InverseTransGroupMatrix * CameraWorldPos.
-                
-                // Simplified: Just put light in Scene (not TransGroup) and copy position?
-                // But user wants it to illuminate TransGroup objects.
-                // Three.js PointLight works in World Space anyway?
-                // If Light is child of TransGroup, it moves with World.
-                // If we want it to stay at Camera (Head), we should un-transform it.
-                
-                // EASIER: Attach light to Camera?
-                // But we are manually updating position.
-                
-                // Let's just approximate:
-                // Since TransGroup moves via -manualPos, 
-                // Camera stays at (0,0,5) + HeadTracking.
-                // We want Light at Camera.
-                
-                // The Light is inside TransGroup.
-                // TransGroup.position = -manualPos.
-                // So Light.position must be manualPos + CameraPos to cancel out?
-                // Example: Player moves Forward (Z=-10). TransGroup Z = +10.
-                // Camera Z = 5.
-                // LightWorld = 5.
-                // LightLocal = LightWorld - TransGroupPos = 5 - 10 = -5.
-                
+                // 讓光源跟隨相機 (手電筒效果)
+                // 由於 TransGroup 被反向移動，我们需要補償這個移動讓光源留在相機處
                 this.customPointLight.position.copy(this.manualPos).add(this.camera.position);
             } else {
-                this.customPointLight.position.set(
-                    this.settings.lightX, 
-                    this.settings.lightY, 
-                    this.settings.lightZ
-                );
+                this.customPointLight.position.set(this.settings.lightX, this.settings.lightY, this.settings.lightZ);
             }
         }
-        // -------------------------------------------
-        
-        // 3. Raycasting & Crosshair
-        if (this.settings.showCrosshair) {
-            this.updateCrosshair();
-        } else {
-            this.hitMarker.visible = false;
-            this.floorProjectionLine.visible = false;
-            this.wallProjectionLine.visible = false;
-        }
 
-        this.renderer.render(this.scene, this.camera);
+        // 同步 Shader 材質 Uniforms
+        this.currentModel.traverse((child) => {
+            if (child.isMesh && child.material.uniforms) {
+                child.material.uniforms.uViewPos.value.copy(this.camera.position);
+                
+                const intensity = this.settings.lightEnabled ? this.settings.lightIntensity : 0.0;
+                child.material.uniforms.uLightIntensity.value = intensity;
+                
+                if (this.settings.lightColor) {
+                    child.material.uniforms.uLightColor.value.set(this.settings.lightColor);
+                }
+                
+                child.material.uniforms.uLightPos.value.set(
+                    this.settings.lightX, this.settings.lightY, this.settings.lightZ
+                );
+                child.material.uniforms.uUseLightFollow.value = this.settings.lightFollowCamera;
+            }
+        });
+    },
+
+    // ========================================================================
+    // 場景建置與輔助工具 (Scene Building & Helpers)
+    // ========================================================================
+
+    buildEnvironment: function() {
+        // 地板網格
+        this.floorGrid = new THREE.GridHelper(20, 20, 0x00ffff, 0x444444);
+        this.floorGrid.position.y = this.CONSTANTS.FLOOR_Y;
+        this.transGroup.add(this.floorGrid);
+
+        // 背景牆網格
+        this.wallGrid = new THREE.GridHelper(20, 20, 0xff00ff, 0x444444);
+        this.wallGrid.rotation.x = Math.PI / 2;
+        this.wallGrid.position.z = this.CONSTANTS.WALL_Z;
+        this.transGroup.add(this.wallGrid);
+
+        // 隱形射線檢測平面 (用於滑鼠互動)
+        const planeGeo = new THREE.PlaneGeometry(20, 20);
+        const planeMat = new THREE.MeshBasicMaterial({ visible: false });
+        
+        const floorPlane = new THREE.Mesh(planeGeo, planeMat);
+        floorPlane.position.y = this.CONSTANTS.FLOOR_Y;
+        floorPlane.rotation.x = -Math.PI / 2;
+        this.transGroup.add(floorPlane);
+
+        const backWallPlane = new THREE.Mesh(planeGeo, planeMat);
+        backWallPlane.position.z = this.CONSTANTS.WALL_Z;
+        this.transGroup.add(backWallPlane);
+
+        this.raycastTargets = [floorPlane, backWallPlane];
+
+        // 互動標記點 (Hit Marker)
+        this.hitMarker = new THREE.Mesh(
+            new THREE.SphereGeometry(0.05),
+            new THREE.MeshBasicMaterial({ color: 0xff0000 })
+        );
+        this.hitMarker.visible = false;
+        this.scene.add(this.hitMarker);
+
+        // 投影輔助線
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+        this.floorProjectionLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), lineMat);
+        this.wallProjectionLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), lineMat);
+        this.floorProjectionLine.visible = false;
+        this.wallProjectionLine.visible = false;
+        
+        // 重要修正：將輔助線加入 transGroup，隨世界一起移動
+        this.transGroup.add(this.floorProjectionLine);
+        this.transGroup.add(this.wallProjectionLine);
+        
+        // 建立自訂光源物件 (備用)
+        this.customPointLight = new THREE.PointLight(0xffffff, 1, 100);
+        this.transGroup.add(this.customPointLight);
+    },
+
+    loadModel: function() {
+        if (typeof TARGET_MODEL_PATH !== 'undefined' && TARGET_MODEL_PATH) {
+            console.log("Loading model:", TARGET_MODEL_PATH);
+            this.loadGLTF(TARGET_MODEL_PATH);
+        } else {
+            console.warn("No TARGET_MODEL_PATH defined.");
+        }
+    },
+
+    loadGLTF: function(url) {
+        this.loader.load(url, (gltf) => {
+            // 清除舊模型
+            if (this.currentModel) {
+                this.transGroup.remove(this.currentModel);
+                // 這裡可以加入 dispose 邏輯釋放記憶體
+            }
+
+            this.currentModel = gltf.scene;
+
+            // 檢查模型是否有內建光源
+            let hasInternalLights = false;
+            this.currentModel.traverse((node) => { if (node.isLight) hasInternalLights = true; });
+
+            if (hasInternalLights) {
+                console.log("Model has lights. Disabling custom shader.");
+                this.settings.lightEnabled = false;
+                if(this.customPointLight) this.customPointLight.visible = false;
+            } else {
+                console.log("No internal lights. Applying custom shader.");
+                this.settings.lightEnabled = true;
+                this.applyShaderToModel(this.currentModel);
+            }
+
+            this.transGroup.add(this.currentModel);
+
+            // 自動縮放與置中
+            const box = new THREE.Box3().setFromObject(this.currentModel);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = 4.0 / maxDim; // 縮放至 4 單位大小
+            
+            this.currentModel.scale.setScalar(scale);
+            this.currentModel.position.sub(center.multiplyScalar(scale)); // 移回中心
+            this.currentModel.position.y = -center.y; // 貼齊地面? 視情況調整
+
+        }, undefined, (err) => {
+            console.error('GLTF Load Error:', err);
+        });
     },
 
     applyShaderToModel: function(model) {
         model.traverse((child) => {
             if (child.isMesh) {
-                console.log(`Applying Shader to: ${child.name}, Mat:`, child.material);
+                // 複製 Shader Uniforms 並保留原始貼圖/顏色
                 const newUniforms = THREE.UniformsUtils.clone(BlinnPhongShader.uniforms);
                 
-                // 1. Preserve Texture
                 if (child.material.map) {
                     newUniforms.uTexture.value = child.material.map;
                     newUniforms.uHasTexture.value = true;
-                } 
-                // 2. Preserve Color
-                else if (child.material.color) {
+                } else if (child.material.color) {
                     newUniforms.uColor.value = child.material.color;
                     newUniforms.uHasTexture.value = false;
                 }
-
-                // 3. Extract Roughness
-                if (child.material.roughness !== undefined) {
-                    newUniforms.uRoughness.value = child.material.roughness;
-                } else {
-                    newUniforms.uRoughness.value = 0.5;
-                }
-
-                // 4. Extract Emissive (Glow)
+                
+                // 保留 Roughness / Emissive 屬性
+                newUniforms.uRoughness.value = child.material.roughness !== undefined ? child.material.roughness : 0.5;
                 if (child.material.emissiveMap) {
                     newUniforms.uEmissiveMap.value = child.material.emissiveMap;
                     newUniforms.uHasEmissiveMap.value = true;
-                } else if (child.material.emissive) {
-                    newUniforms.uEmissive.value = child.material.emissive;
-                    newUniforms.uHasEmissiveMap.value = false;
                 }
-                
-                if (child.material.emissiveIntensity !== undefined) {
-                    newUniforms.uEmissiveIntensity.value = child.material.emissiveIntensity;
+                if (child.material.emissive) {
+                    newUniforms.uEmissive.value = child.material.emissive;
                 }
 
                 child.material = new THREE.ShaderMaterial({
@@ -736,32 +588,76 @@ export const GraphicsApp = {
         });
     },
 
+    setupDragAndDrop: function() {
+        const container = document.body;
+        // 簡單的拖放邏輯，支援 .glb/.gltf
+        container.addEventListener('dragover', (e) => { e.preventDefault(); container.style.opacity = '0.8'; });
+        container.addEventListener('dragleave', (e) => { e.preventDefault(); container.style.opacity = '1.0'; });
+        container.addEventListener('drop', (e) => {
+            e.preventDefault(); container.style.opacity = '1.0';
+            if (e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.name.match(/\.(glb|gltf)$/i)) {
+                    this.loadGLTF(URL.createObjectURL(file));
+                } else {
+                    alert("只支援 .glb 或 .gltf 格式");
+                }
+            }
+        });
+    },
+
+    onWindowResize: function() {
+        if (!this.camera || !this.renderer) return;
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    },
+
+    onKeyDown: function(event) {
+        // 同時記錄 key (char) 與 code (physical key)
+        this.keyboardState[event.key.toLowerCase()] = true;
+        this.keyboardState[event.code.toLowerCase()] = true; 
+    },
+    onKeyUp: function(event) {
+        this.keyboardState[event.key.toLowerCase()] = false;
+        this.keyboardState[event.code.toLowerCase()] = false;
+    },
+
     updateCrosshair: function() {
-        // Set Raycaster from Camera
+        // 從相機中心發射射線
         this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
         const intersects = this.raycaster.intersectObjects(this.raycastTargets);
 
         if (intersects.length > 0) {
-            const closestHit = intersects[0];
-            this.hitMarker.position.copy(closestHit.point);
+            const hit = intersects[0];
+            this.hitMarker.position.copy(hit.point);
             this.hitMarker.visible = true;
 
-            const camPos = this.camera.position;
-            const hitPos = this.hitMarker.position;
+            const updateLine = (line, start, end) => {
+                const pos = line.geometry.attributes.position;
+                pos.setXYZ(0, start.x, start.y, start.z);
+                pos.setXYZ(1, end.x, end.y, end.z);
+                pos.needsUpdate = true;
+                line.visible = true;
+            };
+            
+            // 重要：因為輔助線在 transGroup 內，必須將 World 座標轉為 Local 座標
+            // 先 Clone 避免修改原始變數
+            const localCam = this.transGroup.worldToLocal(this.camera.position.clone());
+            const localHit = this.transGroup.worldToLocal(this.hitMarker.position.clone());
 
-            // Floor Line
-            const floorLinePos = this.floorProjectionLine.geometry.attributes.position;
-            floorLinePos.setXYZ(0, camPos.x, this.FLOOR_Y, camPos.z);
-            floorLinePos.setXYZ(1, hitPos.x, this.FLOOR_Y, hitPos.z);
-            floorLinePos.needsUpdate = true;
-            this.floorProjectionLine.visible = true;
+            // 地板投影線 (加上微小偏移 Y+0.01 避免 Z-fighting)
+            updateLine(this.floorProjectionLine, 
+                new THREE.Vector3(localCam.x, this.CONSTANTS.FLOOR_Y, localCam.z),
+                new THREE.Vector3(localHit.x, this.CONSTANTS.FLOOR_Y, localHit.z)
+            );
+            
+            // 牆壁投影線 (加上微小偏移 Z+0.01 避免 Z-fighting)
+            updateLine(this.wallProjectionLine,
+                 new THREE.Vector3(localCam.x, localCam.y, this.CONSTANTS.WALL_Z),
+                 new THREE.Vector3(localHit.x, localHit.y, this.CONSTANTS.WALL_Z)
+            );
 
-            // Wall Line
-            const wallLinePos = this.wallProjectionLine.geometry.attributes.position;
-            wallLinePos.setXYZ(0, camPos.x, camPos.y, this.WALL_Z);
-            wallLinePos.setXYZ(1, hitPos.x, hitPos.y, this.WALL_Z);
-            wallLinePos.needsUpdate = true;
-            this.wallProjectionLine.visible = true;
         } else {
             this.hitMarker.visible = false;
             this.floorProjectionLine.visible = false;
