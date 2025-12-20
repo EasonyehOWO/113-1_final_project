@@ -313,10 +313,10 @@ export const GraphicsApp = {
     },
 
     updateHeadData: function(data) {
-        const { x, y, widthRatio } = data;
+        const { x, y, faceWidthRatio } = data;
         
         // DEBUG: Check for NaN issues
-        if (isNaN(x) || isNaN(y) || isNaN(widthRatio)) {
+        if (isNaN(x) || isNaN(y) || isNaN(faceWidthRatio)) {
             console.warn("GraphicsApp received NaN data:", data);
             return;
         }
@@ -326,7 +326,7 @@ export const GraphicsApp = {
 
         // Validate Inputs
 
-        if (isNaN(x) || isNaN(y) || isNaN(widthRatio)) return;
+        if (isNaN(x) || isNaN(y) || isNaN(faceWidthRatio)) return;
 
         // Cleanup: remove unused variables and ensure settings are numbers
         const offX = isNaN(this.settings.offsetX) ? 0 : this.settings.offsetX;
@@ -351,7 +351,7 @@ export const GraphicsApp = {
         // - 1dm = 10cm = grid unit in the world
         
         // Z = FocalConstant / FaceWidthRatio
-        const targetZ = this.settings.sensitivityZ / Math.max(0.01, widthRatio); 
+        const targetZ = this.settings.sensitivityZ / Math.max(0.01, faceWidthRatio); 
 
         // Apply Smoothing (Lerp)
         this.lastX += (targetX - this.lastX) * this.lerpFactor;

@@ -104,7 +104,7 @@ export const FaceTracker = {
                 let normY = -((centerY / vHeight) * 2 - 1);
 
                 // Width Ratio (Face Width / Screen Width)
-                const widthRatio = width / vWidth;
+                const faceWidthRatio = width / vWidth;
 
                 this.statusElement.innerText = "追蹤中 (Raw Model)";
                 this.statusElement.style.color = "#00ff00";
@@ -113,8 +113,7 @@ export const FaceTracker = {
                     this.onUpdateCallback({
                         x: normX,
                         y: normY,
-                        widthRatio: widthRatio, 
-                        roll: 0
+                        faceWidthRatio: faceWidthRatio
                     });
                 }
             }
