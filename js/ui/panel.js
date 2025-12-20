@@ -37,7 +37,11 @@ export class Panel {
             lightZ: 5,
 
             lightFollowCamera: true,
-            physicsMode: false // True = Window/Physics Mode (Fixed Screen Size), False = Zoom Mode (Fixed FOV)
+            lightFollowCamera: true,
+            physicsMode: false, // True = Window/Physics Mode, False = Zoom Mode
+            
+            // Advanced Performance
+            inputSize: 320 // AI Input Resolution (160-1920)
         };
         
         const stored = localStorage.getItem('viewer_settings');
@@ -291,10 +295,16 @@ export class Panel {
                         </div>
                         <div>
                             <label>攝像頭解析度 (需重整)</label>
-                            <select id="inp-webcamRes">
-                                <option value="low">320x240 (快速)</option>
-                                <option value="high">640x480 (清晰)</option>
+                            <select id="inp-webcamRes" title="請讓長邊解析度低於 AI 輸入解析度，否則浪費運算資源。">
+                                <option value="low">Low (320x240)</option>
+                                <option value="high">High (640x480)</option>
+                                <option value="hd">HD (1280x720)</option>
+                                <option value="fhd">FHD (1920x1080)</option>
                             </select>
+                        </div>
+                        <div style="margin-top: 5px;" title="運算量為此值平方，請不要設太高。建議 256~480。">
+                            <label>AI 輸入解析度: <span id="val-inputSize"></span></label>
+                            <input type="range" id="inp-inputSize" min="160" max="1920" step="32" />
                         </div>
                     </div>
 
@@ -395,6 +405,7 @@ export class Panel {
         bindRange('inp-sensY', 'sensitivityY');
         bindRange('inp-sensZ', 'sensitivityZ');
         bindRange('inp-renderScale', 'rendererScale');
+        bindRange('inp-inputSize', 'inputSize'); // New Binding
         
         // Calibration Bindings
         bindRange('inp-offsetX', 'offsetX');

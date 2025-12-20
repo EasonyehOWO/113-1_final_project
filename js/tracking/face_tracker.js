@@ -11,6 +11,8 @@ export const FaceTracker = {
 
     // Smoothing handled in SceneInit now
     // Only raw detection here
+    currentStream: null,
+    settings: {},
 
 
     init: async function(videoElementId) {
@@ -40,17 +42,33 @@ export const FaceTracker = {
         }
     },
 
-    startWebcam: function() {
-        // Request simple video, browser/device decides resolution (usually 640x480)
-        navigator.mediaDevices.getUserMedia({ video: {} })
-            .then(stream => {
-                this.videoElement.srcObject = stream;
-            })
-            .catch(err => console.error("Webcam error:", err));
+    startWebcam: function(constraintsOverride = null) {
+        // Stop previous stream
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(track => track.stop());
+        }
 
-        this.videoElement.addEventListener('play', () => {
-            this.startDetectionLoop();
-        });
+        const constraints = constraintsOverride || { video: {} };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream => {
+                this.currentStream = stream;
+                this.videoElement.srcObject = stream;
+                
+                // Update display status
+                const track = stream.getVideoTracks()[0];
+                const settings = track.getSettings();
+                console.log(`Webcam started: ${settings.width}x${settings.height}`);
+            })
+            .catch(err => {
+                console.error("Webcam error:", err);
+                this.statusElement.innerText = "Webcam Error: " + err.message;
+            });
+
+        // Event listener might duplicate if called multiple times, ensure one-time setup or check
+        this.videoElement.onplay = () => {
+             this.startDetectionLoop();
+        };
     },
 
     startDetectionLoop: async function() {
@@ -67,9 +85,13 @@ export const FaceTracker = {
                      }
                 }
 
+                // Dynamic Settings
+                const inputSize = this.settings.inputSize || 224;
+                const scoreThreshold = (inputSize > 320) ? 0.3 : 0.5;
+
                 const detection = await faceapi.detectSingleFace(
                     this.videoElement, 
-                    new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+                    new faceapi.TinyFaceDetectorOptions({ inputSize: inputSize, scoreThreshold: scoreThreshold })
                 );
 
                 // Clear previous draw
@@ -141,15 +163,41 @@ export const FaceTracker = {
             this.lerpFactor = settings.stabilization ? settings.lerpFactor : 1.0;
         }
         
-        // Webcam Resolution handling (DisplaySize)
         if (settings.webcamRes) {
-            const width = settings.webcamRes === 'high' ? 640 : 320;
-            const height = settings.webcamRes === 'high' ? 480 : 240;
-            this.displaySize = { width, height };
-            if(this.videoElement) {
-                 this.videoElement.width = width;
-                 this.videoElement.height = height;
+            // Check if resolution changed physically or logically
+            const targetW = (settings.webcamRes === 'hd') ? 1280 : 
+                           (settings.webcamRes === 'fhd') ? 1920 :
+                           (settings.webcamRes === 'high') ? 640 : 320;
+            const targetH = (settings.webcamRes === 'hd') ? 720 : 
+                           (settings.webcamRes === 'fhd') ? 1080 :
+                           (settings.webcamRes === 'high') ? 480 : 240;
+
+            const oldRes = this.settings.webcamRes;
+            
+            // Update internal settings reference
+            this.settings = { ...this.settings, ...settings };
+
+            if (settings.webcamRes !== oldRes) {
+                 // Trigger Restart with new constraints
+                 console.log("Resolution changed to " + settings.webcamRes + ", restarting stream...");
+                 this.startWebcam({
+                     video: {
+                         width: { ideal: targetW },
+                         height: { ideal: targetH },
+                         facingMode: 'user'
+                     }
+                 });
+            } else {
+                 // Even if stream didn't change, update display size just in case
+                 this.displaySize = { width: targetW, height: targetH };
+                 if(this.videoElement) {
+                      this.videoElement.width = targetW;
+                      this.videoElement.height = targetH;
+                 }
             }
+        } else {
+            // Update other settings
+            this.settings = { ...this.settings, ...settings };
         }
     }
 };
