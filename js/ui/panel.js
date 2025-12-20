@@ -19,12 +19,12 @@ export class Panel {
 
     loadSettings() {
         const defaults = {
-            sensitivityX: 12.0,
-            sensitivityY: 12.0,
-            sensitivityZ: 1.0,
-            lerpFactor: 0.5,
+            sensitivityX: 8.0,
+            sensitivityY: 8.0,
+            sensitivityZ: 1.5,
+            lerpFactor: 0.75,
             showCrosshair: true,
-            rendererScale: 0.5,
+            rendererScale: 1.0,
             webcamRes: 'low', // 'low' (320x240) or 'high' (640x480)
             stabilization: true,
             panelOpacity: 0.6,
@@ -36,7 +36,7 @@ export class Panel {
             lightY: 5,
             lightZ: 5,
 
-            lightFollowCamera: false,
+            lightFollowCamera: true,
             physicsMode: false // True = Window/Physics Mode (Fixed Screen Size), False = Zoom Mode (Fixed FOV)
         };
         
@@ -130,11 +130,11 @@ export class Panel {
         const panelEl = this.element.querySelector('.settings-panel');
         if(panelEl) panelEl.style.setProperty('--panel-idle-opacity', this.settings.panelOpacity);
         
-        const videoPreview = document.getElementById('video-preview');
-        if (videoPreview) {
+        const previewContainer = document.getElementById('preview-container');
+        if (previewContainer) {
             // don't use display none to hide it; otherwise the webcam will stop working
-            videoPreview.style.opacity = this.settings.showWebcam ? 1 : 0;
-            videoPreview.style.pointerEvents = this.settings.showWebcam ? 'auto' : 'none';
+            previewContainer.style.opacity = this.settings.showWebcam ? 1 : 0;
+            previewContainer.style.pointerEvents = this.settings.showWebcam ? 'auto' : 'none';
         }
     }
     
@@ -193,47 +193,77 @@ export class Panel {
             <details class="settings-panel" open>
                 <summary>設定面板 (Settings)</summary>
                 <div class="panel-content">
-                    <div class="control-group">
-                        <label>面板透明度 (Opacity): <span id="val-panelOpacity"></span></label>
-                        <input type="range" id="inp-panelOpacity" min="0.1" max="1.0" step="0.05">
-                    </div>
-
-                    <hr>
 
                     <div class="control-group">
-                        <label>X 軸靈敏度: <span id="val-sensX"></span></label>
-                        <input type="range" id="inp-sensX" min="-100" max="100" step="0.2">
-                    </div>
-                    <div class="control-group">
-                        <label>Y 軸靈敏度: <span id="val-sensY"></span></label>
-                        <input type="range" id="inp-sensY" min="-100" max="100" step="0.2">
-                    </div>
-                    <div class="control-group" title="= 臉框實寬(cm) / 10 / 2 / tan(橫向視野角 / 2)">
-                        <label>Z 軸靈敏度（焦距和臉寬參數）: <span id="val-sensZ"></span></label>
-                        <input type="range" id="inp-sensZ" min="0.1" max="5.0" step="0.1">
+                        <div>
+                            <label>面板透明度 (Opacity): <span id="val-panelOpacity"></span></label>
+                            <input type="range" id="inp-panelOpacity" min="0.1" max="1.0" step="0.05" />
+                        </div>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="inp-showWebcam">
+                            顯示視訊預覽 (Webcam Preview)
+                        </label>
+                        <label class="toggle-label" title="開啟後，靠近螢幕時視野變廣（物體視覺上縮小）；關閉則為單純放大（Zoom）。">
+                            <input type="checkbox" id="inp-physicsMode">
+                            真實透視模式 (Physical Window)
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="inp-crosshair">
+                            顯示十字準心 (Crosshair)
+                        </label>
                     </div>
 
-                    <hr>
+                    <hr />
 
                     <div class="control-group">
-                        <label>數值平滑 (Stabilization): <span id="val-lerp"></span></label>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="checkbox" id="inp-stabilization">
-                            <input type="range" id="inp-lerp" min="0.01" max="1.0" step="0.005" style="flex:1;">
+                        <label style="color: #00bcd4;">光源設定</label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="inp-lightEnabled">
+                            啟用自訂光源 (Enable Light)
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="inp-lightFollow">
+                            光源跟隨相機 (Flashlight)
+                        </label>
+                        <div id="group-lightPos">
+                            <div>
+                                <label>Light X: <span id="val-lightX"></span></label>
+                                <input type="range" id="inp-lightX" min="-20" max="20" step="0.5">
+                            </div>
+                            <div>
+                                <label>Light Y: <span id="val-lightY"></span></label>
+                                <input type="range" id="inp-lightY" min="-20" max="20" step="0.5">
+                            </div>
+                            <div>
+                                <label>Light Z: <span id="val-lightZ"></span></label>
+                                <input type="range" id="inp-lightZ" min="-20" max="20" step="0.5">
+                            </div>
                         </div>
                     </div>
 
-                    <hr>
+                    <hr />
                     
                     <div class="control-group">
-                        <label style="color: #00bcd4;">校準設定 (Calibration)</label>
-                        <div style="margin-top:5px;">
+                        <label style="color: #00bcd4;">相機校準設定</label>
+                        <div>
                             <label>Webcam 偏移 X (cm): <span id="val-offsetX"></span></label>
-                            <input type="range" id="inp-offsetX" min="-50" max="50" step="1">
+                            <input type="range" id="inp-offsetX" min="-50" max="50" step="0.1">
                         </div>
-                        <div style="margin-top:5px;">
+                        <div>
                             <label>Webcam 偏移 Y (cm): <span id="val-offsetY"></span></label>
-                            <input type="range" id="inp-offsetY" min="-50" max="50" step="1">
+                            <input type="range" id="inp-offsetY" min="-50" max="50" step="0.1">
+                        </div>
+                        <div>
+                            <label>X 軸靈敏度: <span id="val-sensX"></span></label>
+                            <input type="range" id="inp-sensX" min="-100" max="100" step="0.2">
+                        </div>
+                        <div>
+                            <label>Y 軸靈敏度: <span id="val-sensY"></span></label>
+                            <input type="range" id="inp-sensY" min="-100" max="100" step="0.2">
+                        </div>
+                        <div title="= 臉框實寬(cm) / 10 / 2 / tan(橫向視野角 / 2)">
+                            <label>Z 軸靈敏度（焦距和臉寬參數）: <span id="val-sensZ"></span></label>
+                            <input type="range" id="inp-sensZ" min="0.1" max="5.0" step="0.1">
                         </div>
                         <!-- Future Physical Size Inputs (Placeholders for now) -->
                         <!-- 
@@ -244,59 +274,30 @@ export class Panel {
                         -->
                     </div>
 
-                    <hr>
+                    <hr />
 
                     <div class="control-group">
-                        <label>渲染解析度 (Render Scale): <span id="val-rendererScale"></span>x</label>
-                        <input type="range" id="inp-renderScale" min="0.1" max="2.0" step="0.01">
-                    </div>
-                    <div class="control-group">
-                        <label>攝像頭解析度 (需重整)</label>
-                        <select id="inp-webcamRes">
-                            <option value="low">320x240 (快速)</option>
-                            <option value="high">640x480 (清晰)</option>
-                        </select>
-                    </div>
-
-                    <hr>
-
-                    <div class="control-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="inp-showWebcam">
-                            顯示視訊預覽 (Webcam Preview)
-                        </label>
-                        <label class="toggle-label" title="開啟後，靠近螢幕時視野變廣（物體視覺上縮小）；關閉則為單純放大（Zoom）。">
-                            <input type="checkbox" id="inp-physicsMode">
-                            真實透視模式 (Physical Window)
-                        </label>
-                    </div>
-                    <div class="control-group">
-                        <label style="color: #00bcd4;">光源設定 (Lighting)</label>
-                        <label class="toggle-label">
-                            <input type="checkbox" id="inp-lightEnabled">
-                            啟用自訂光源 (Enable Light)
-                        </label>
-                        <label class="toggle-label">
-                            <input type="checkbox" id="inp-lightFollow">
-                            光源跟隨相機 (Flashlight)
-                        </label>
-                        <div id="group-lightPos" style="margin-top:5px;">
-                            <label>Light X: <span id="val-lightX"></span></label>
-                            <input type="range" id="inp-lightX" min="-20" max="20" step="0.5">
-                            
-                            <label>Light Y: <span id="val-lightY"></span></label>
-                            <input type="range" id="inp-lightY" min="-20" max="20" step="0.5">
-
-                            <label>Light Z: <span id="val-lightZ"></span></label>
-                            <input type="range" id="inp-lightZ" min="-20" max="20" step="0.5">
+                        <label style="color: #00bcd4;">效能設定</label>
+                        <div>
+                            <label>數值平滑 (Stabilization): <span id="val-lerp"></span></label>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="inp-stabilization">
+                                <input type="range" id="inp-lerp" min="0.01" max="1.0" step="0.005" style="flex:1;">
+                            </div>
+                        </div>
+                        <div>
+                            <label>渲染解析度 (Render Scale): <span id="val-rendererScale"></span>x</label>
+                            <input type="range" id="inp-renderScale" min="0.1" max="2.0" step="0.01">
+                        </div>
+                        <div>
+                            <label>攝像頭解析度 (需重整)</label>
+                            <select id="inp-webcamRes">
+                                <option value="low">320x240 (快速)</option>
+                                <option value="high">640x480 (清晰)</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="control-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="inp-crosshair">
-                            顯示十字準心 (Crosshair)
-                        </label>
-                    </div>
+
                     <button id="btn-reset" class="btn-secondary" style="margin-top: 1rem; width: 100%;">重置所有設定</button>
                 </div>
             </details>
@@ -313,12 +314,11 @@ export class Panel {
             panelEl.style.setProperty('--panel-idle-opacity', this.settings.panelOpacity);
             
             // Webcam Visibility
-            const videoPreview = document.getElementById('video-preview');
-            if (videoPreview) {
-                // videoPreview.style.display = this.settings.showWebcam ? 'block' : 'none';
+            const previewContainer = document.getElementById('preview-container');
+            if (previewContainer) {
                 // don't use display none to hide it; otherwise the webcam will stop working
-                videoPreview.style.opacity = this.settings.showWebcam ? 1 : 0;
-                videoPreview.style.pointerEvents = this.settings.showWebcam ? 'auto' : 'none';
+                previewContainer.style.opacity = this.settings.showWebcam ? 1 : 0;
+                previewContainer.style.pointerEvents = this.settings.showWebcam ? 'auto' : 'none';
             }
         };
 
@@ -336,7 +336,13 @@ export class Panel {
             const disp = this.element.querySelector(`#${dispId}`);
             
             el.value = this.settings[key];
-            if(disp) disp.innerText = this.settings[key];
+            if(disp) {
+                if (key === 'offsetX' || key === 'offsetY') {
+                    disp.innerText = parseFloat(this.settings[key]).toFixed(1);
+                } else {
+                    disp.innerText = this.settings[key];
+                }
+            }
 
             el.addEventListener('input', (e) => {
                 let val = parseFloat(e.target.value);
@@ -345,8 +351,14 @@ export class Panel {
                 this.settings[key] = val;
                 if(disp) disp.innerText = val;
                 
+                
                 // Immediate local effect for UI settings
                 if(key === 'panelOpacity') updateUIEffects();
+                
+                // Format for display (optional)
+                if(key === 'offsetX' || key === 'offsetY') {
+                    if(disp) disp.innerText = val.toFixed(1);
+                }
                 
                 this.broadcastSettings();
             });
