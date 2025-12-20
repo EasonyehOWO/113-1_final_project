@@ -29,6 +29,9 @@ export const GraphicsApp = {
         lightY: 5,
         lightZ: 5,
         lightZ: 5,
+        lightIntensity: 1.0,
+        lightColor: '#ffffff',
+        
         lightFollowCamera: false,
         physicsMode: false,
         
@@ -532,8 +535,14 @@ export const GraphicsApp = {
                      // So we just pass the Camera Position.
                      child.material.uniforms.uViewPos.value.copy(this.camera.position);
                      // Update Light Settings
-                     const intensity = this.settings.lightEnabled ? 1.0 : 0.0;
+                     const val = (this.settings.lightIntensity !== undefined) ? this.settings.lightIntensity : 1.0;
+                     const intensity = this.settings.lightEnabled ? val : 0.0;
                      child.material.uniforms.uLightIntensity.value = intensity;
+                     
+                     // Light Color Update
+                     if (this.settings.lightColor) {
+                         child.material.uniforms.uLightColor.value.set(this.settings.lightColor);
+                     }
                      
                      child.material.uniforms.uLightPos.value.set(
                          this.settings.lightX, 
@@ -549,6 +558,12 @@ export const GraphicsApp = {
         // Even if shader is unused (Standard Material), this light works.
         if (this.customPointLight) {
             this.customPointLight.visible = this.settings.lightEnabled;
+            // Update Intensity & Color
+            this.customPointLight.intensity = this.settings.lightIntensity !== undefined ? this.settings.lightIntensity : 1.0;
+            if (this.settings.lightColor) {
+                 this.customPointLight.color.set(this.settings.lightColor);
+            }
+            
             // If Follow Camera
             if (this.settings.lightFollowCamera) {
                 // In world space, camera is at camera.position (Head), 

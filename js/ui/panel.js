@@ -35,7 +35,9 @@ export class Panel {
             lightX: 5,
             lightY: 5,
             lightZ: 5,
-
+            lightIntensity: 1.0,
+            lightColor: '#ffffff',
+            
             lightFollowCamera: true,
             physicsMode: true, // True = Window/Physics Mode, False = Zoom Mode
             visualConvergenceMode: false, // True = LookAt Center (Hologram), False = Window Off-axis
@@ -254,6 +256,14 @@ export class Panel {
                                 <input type="range" id="inp-lightZ" min="-20" max="20" step="0.5">
                             </div>
                         </div>
+                        <div style="margin-top: 10px;">
+                            <label>光照強度 (Intensity): <span id="val-lightIntensity"></span></label>
+                            <input type="range" id="inp-lightIntensity" min="0" max="5.0" step="0.01">
+                        </div>
+                         <div style="margin-top: 5px;">
+                            <label>光照顏色 (Color): <span id="val-lightColor"></span></label>
+                            <input type="color" id="inp-lightColor" style="width: 100%; height: 30px;">
+                        </div>
                     </div>
 
                     <hr />
@@ -459,7 +469,23 @@ export class Panel {
         bindRange('inp-lightX', 'lightX');
         bindRange('inp-lightY', 'lightY');
         bindRange('inp-lightZ', 'lightZ');
-        bindRange('inp-lightZ', 'lightZ');
+        bindRange('inp-lightIntensity', 'lightIntensity');
+        
+        // Color Binding
+        const bindColor = (id, key) => {
+            const el = this.element.querySelector(`#${id}`);
+            el.value = this.settings[key];
+            const dispId = `val-${key}`;
+            const disp = this.element.querySelector(`#${dispId}`);
+            if(disp) disp.innerText = this.settings[key];
+
+            el.addEventListener('input', (e) => {
+                this.settings[key] = e.target.value;
+                if(disp) disp.innerText = e.target.value;
+                this.broadcastSettings();
+            });
+        };
+        bindColor('inp-lightColor', 'lightColor');
         
         // Fog & Distance Bindings
         bindRange('inp-cameraFar', 'cameraFar');
