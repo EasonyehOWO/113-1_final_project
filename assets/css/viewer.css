@@ -51,6 +51,9 @@ body {
     justify-content: center;
     align-items: center;
 
+    /* 避免內部影片的銳角覆蓋邊框 */
+    overflow: auto;
+
     /* Hover 放大效果 */
     &:hover {
         width: calc(100vw - 40px);

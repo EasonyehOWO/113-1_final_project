@@ -35,7 +35,7 @@ export class Panel {
             lightX: 5,
             lightY: 5,
             lightZ: 5,
-            lightZ: 5,
+
             lightFollowCamera: false,
             physicsMode: false // True = Window/Physics Mode (Fixed Screen Size), False = Zoom Mode (Fixed FOV)
         };
@@ -208,9 +208,9 @@ export class Panel {
                         <label>Y 軸靈敏度: <span id="val-sensY"></span></label>
                         <input type="range" id="inp-sensY" min="-100" max="100" step="0.2">
                     </div>
-                    <div class="control-group">
-                        <label>Z 軸靈敏度: <span id="val-sensZ"></span></label>
-                        <input type="range" id="inp-sensZ" min="-100" max="100" step="0.2">
+                    <div class="control-group" title="= 臉框實寬(cm) / 10 / 2 / tan(橫向視野角 / 2)">
+                        <label>Z 軸靈敏度（焦距和臉寬參數）: <span id="val-sensZ"></span></label>
+                        <input type="range" id="inp-sensZ" min="0.1" max="5.0" step="0.1">
                     </div>
 
                     <hr>

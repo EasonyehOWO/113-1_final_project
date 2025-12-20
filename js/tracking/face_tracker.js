@@ -9,16 +9,9 @@ export const FaceTracker = {
     onUpdateCallback: null,
     isModelLoaded: false,
 
-    // Smoothing Variables
-    lastX: 0,
-    lastY: 0,
-    lastZ: 5, // Default Z
-    lerpFactor: 0.5, // Increased from 0.1 to 0.5 for better responsiveness (User Request)
+    // Smoothing handled in SceneInit now
+    // Only raw detection here
 
-    // Z-Estimation Calibrations
-    BASE_Z: 5,
-    NEUTRAL_FACE_WIDTH: 0.35, // When face width is 35% of screen, Z is BASE_Z
-    Z_SENSITIVITY: 10.0,
 
     init: async function(videoElementId) {
         this.videoElement = document.getElementById(videoElementId);
@@ -82,58 +75,47 @@ export const FaceTracker = {
                 // Clear previous draw
                 if(ctx) ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-                if (detection) {
-                    const { x, y, width, height } = detection.box;
-                    const centerX = x + width / 2;
-                    const centerY = y + height / 2;
-                    
-                    // Draw Box
-                    if (ctx) {
-                        ctx.strokeStyle = '#00ff00';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(x, y, width, height);
-                    }
-
-                    // ... (Original Logic)
-                    const vWidth = this.videoElement.videoWidth;
-                    const vHeight = this.videoElement.videoHeight;
-
-                    // Mirror X axis
-                    let normX = -((centerX / vWidth) * 2 - 1);
-                    // Invert Y axis
-                    let normY = -((centerY / vHeight) * 2 - 1);
-
-                    // Estimate Z
-                    const widthRatio = width / vWidth;
-                    const zOffset = (this.NEUTRAL_FACE_WIDTH - widthRatio) * this.Z_SENSITIVITY;
-                    let targetZ = this.BASE_Z + zOffset;
-
-                    // Helper: Clamp
-                    targetZ = Math.max(1.0, Math.min(targetZ, 10.0));
-
-                    // Smoothing
-                    this.lastX += (normX - this.lastX) * this.lerpFactor;
-                    this.lastY += (normY - this.lastY) * this.lerpFactor;
-                    this.lastZ += (targetZ - this.lastZ) * this.lerpFactor;
-
-                    if(document.getElementById('head-x')) {
-                        document.getElementById('head-x').innerText = this.lastX.toFixed(2);
-                        document.getElementById('head-y').innerText = this.lastY.toFixed(2);
-                    }
-                    this.statusElement.innerText = "追蹤中 (Legacy Model)";
-                    this.statusElement.style.color = "#00ff00";
-
-                    if (this.onUpdateCallback) {
-                        this.onUpdateCallback({
-                            x: this.lastX,
-                            y: this.lastY,
-                            z: this.lastZ,
-                            roll: 0
-                        });
-                    }
-                } else {
+                if (!detection) {
                     this.statusElement.innerText = "未偵測到人臉";
                     this.statusElement.style.color = "orange";
+                    return;
+                }
+
+                const { x, y, width, height } = detection.box;
+                const centerX = x + width / 2;
+                const centerY = y + height / 2;
+                    
+                // Draw Box
+                if (ctx) {
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, width, height);
+                }
+
+                // ... (Original Logic)
+                const vWidth = this.videoElement.videoWidth;
+                const vHeight = this.videoElement.videoHeight;
+                
+                if (vWidth === 0 || vHeight === 0) return;
+
+                // Mirror X axis & Normalize (-1.0 to 1.0)
+                let normX = -((centerX / vWidth) * 2 - 1);
+                // Invert Y axis & Normalize (-1.0 to 1.0)
+                let normY = -((centerY / vHeight) * 2 - 1);
+
+                // Width Ratio (Face Width / Screen Width)
+                const widthRatio = width / vWidth;
+
+                this.statusElement.innerText = "追蹤中 (Raw Model)";
+                this.statusElement.style.color = "#00ff00";
+
+                if (this.onUpdateCallback) {
+                    this.onUpdateCallback({
+                        x: normX,
+                        y: normY,
+                        widthRatio: widthRatio, 
+                        roll: 0
+                    });
                 }
             }
         };

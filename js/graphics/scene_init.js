@@ -48,10 +48,20 @@ export const GraphicsApp = {
              if(this.floorProjectionLine) this.floorProjectionLine.visible = false;
              if(this.wallProjectionLine) this.wallProjectionLine.visible = false;
         }
+        if (newSettings.stabilization !== undefined) {
+             this.lerpFactor = newSettings.stabilization ? (newSettings.lerpFactor || 0.1) : 1.0;
+        }
     },
 
     // Camera State (Smoothing)
     targetCamPos: new THREE.Vector3(0, 0, 5),
+    
+    // Smoothing & Tracking State
+    lastX: 0,
+    lastY: 0,
+    lastZ: 5,
+    lerpFactor: 0.1, // Default smoothing
+
     targetCamRotZ: 0,
     
     // Manual Controls (Keyboard)
@@ -303,23 +313,61 @@ export const GraphicsApp = {
     },
 
     updateHeadData: function(data) {
-        const { x, y, z, roll } = data;
+        const { x, y, widthRatio } = data;
         
+        // DEBUG: Check for NaN issues
+        if (isNaN(x) || isNaN(y) || isNaN(widthRatio)) {
+            console.warn("GraphicsApp received NaN data:", data);
+            return;
+        }
+        if (isNaN(this.settings.sensitivityX) || isNaN(this.settings.sensitivityZ)) {
+             console.warn("GraphicsApp settings have NaN:", this.settings);
+        }
+
         // Validate Inputs
-        if (isNaN(x) || isNaN(y) || isNaN(z)) return;
+
+        if (isNaN(x) || isNaN(y) || isNaN(widthRatio)) return;
 
         // Cleanup: remove unused variables and ensure settings are numbers
         const offX = isNaN(this.settings.offsetX) ? 0 : this.settings.offsetX;
         const offY = isNaN(this.settings.offsetY) ? 0 : this.settings.offsetY;
         
-        // Calculate Final Position: Sensitivity * Raw + Offset
-        const finalX = (x * this.settings.sensitivityX) + offX;
-        const finalY = (y * this.settings.sensitivityY) + offY;
+        // Calculate Target Position
+        // X/Y: Normalized Input * Sensitivity + Offset
+        const targetX = (x * this.settings.sensitivityX) + offX;
+        const targetY = (y * this.settings.sensitivityY) + offY;
         
-        const posZ = z; 
+        // Z: Pinhole Model approximation (針孔成像原理)
+        // Formula: h / f = H / D  =>  D = f * (H / h)
+        // - D: Distance from camera (Z)
+        // - f: Focal length of the webcam
+        // - H: Real face width (avg 14-16cm)
+        // - h: Sensor face width (in pixels or ratio)
+        // (ref: https://gemini.google.com/share/ee6aa65f3b60 )
+        //
+        // Simplified: Z = sensitivityZ / WidthRatio
+        // - Where 'sensitivityZ' 
+        //   = (RealFaceBoxWidth (dm)) / 2 / tan(HorizontalFoV / 2)
+        // - 1dm = 10cm = grid unit in the world
         
-        this.targetCamPos.set(finalX, finalY, posZ);
-        // this.targetCamRotZ = 0; // Roll disabled
+        // Z = FocalConstant / FaceWidthRatio
+        const targetZ = this.settings.sensitivityZ / Math.max(0.01, widthRatio); 
+
+        // Apply Smoothing (Lerp)
+        this.lastX += (targetX - this.lastX) * this.lerpFactor;
+        this.lastY += (targetY - this.lastY) * this.lerpFactor;
+        this.lastZ += (targetZ - this.lastZ) * this.lerpFactor;
+        
+        // Clamp Z to reasonable range
+        const clampedZ = Math.max(1.0, Math.min(this.lastZ, 15.0));
+
+        this.targetCamPos.set(this.lastX, this.lastY, clampedZ);
+        
+        // Update UI Debug
+        if(document.getElementById('head-x')) {
+            document.getElementById('head-x').innerText = this.lastX.toFixed(2);
+            document.getElementById('head-y').innerText = this.lastY.toFixed(2);
+        }
     },
 
     onWindowResize: function() {
