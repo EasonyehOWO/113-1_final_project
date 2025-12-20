@@ -24,7 +24,11 @@ export const GraphicsApp = {
         convergence: 0.0,
         showCrosshair: true,
         offsetX: 0,
-        offsetY: 0
+        offsetY: 0,
+        lightX: 5,
+        lightY: 5,
+        lightZ: 5,
+        lightFollowCamera: false
     },
 
     updateSettings: function(newSettings) {
@@ -221,6 +225,13 @@ export const GraphicsApp = {
                         newUniforms.uHasTexture.value = false;
                     }
 
+                    // 3. Extract Roughness (PBR)
+                    if (child.material.roughness !== undefined) {
+                        newUniforms.uRoughness.value = child.material.roughness;
+                    } else {
+                        newUniforms.uRoughness.value = 0.5; // Default if undefined
+                    }
+
                     child.material = new THREE.ShaderMaterial({
                         uniforms: newUniforms,
                         vertexShader: BlinnPhongShader.vertexShader,
@@ -407,24 +418,72 @@ export const GraphicsApp = {
             near, far
         );
 
-        // 5. Update Shader Uniforms
+        // Update Shader Uniforms if model exists
         if (this.currentModel) {
             this.currentModel.traverse((child) => {
                 if (child.isMesh && child.material.uniforms) {
-                     // Since World rotates, we must transform Camera Pos into World Space for correct Specular?
-                     // Or just use World Space Camera Pos? 
-                     // Shader works in World Space? vertexShader uses modelViewMatrix.
-                     // viewPos should be in World Space.
-                     // Camera is at (HeadX, HeadY, HeadZ).
-                     // Objects are transformed.
-                     // Actually, Three.js shaders expect View Pos in World Space.
-                     // Our visual "World Space" is the rotated one.
                      // The Camera is physically at (HeadX...).
                      // So we just pass the Camera Position.
                      child.material.uniforms.uViewPos.value.copy(this.camera.position);
+                     // Update Light Settings
+                     const intensity = this.settings.lightEnabled ? 1.0 : 0.0;
+                     child.material.uniforms.uLightIntensity.value = intensity;
+                     
+                     child.material.uniforms.uLightPos.value.set(
+                         this.settings.lightX, 
+                         this.settings.lightY, 
+                         this.settings.lightZ
+                     );
+                     child.material.uniforms.uUseLightFollow.value = this.settings.lightFollowCamera;
                 }
             });
         }
+        
+        // --- Sync Real Light (Custom PointLight) ---
+        // Even if shader is unused (Standard Material), this light works.
+        if (this.customPointLight) {
+            this.customPointLight.visible = this.settings.lightEnabled;
+            // If Follow Camera
+            if (this.settings.lightFollowCamera) {
+                // In world space, camera is at camera.position (Head), 
+                // Light is in TransGroup. TransGroup is transformed.
+                // We need Light relative to TransGroup to match Camera World Position?
+                // Actually, if we want Light to be at Camera:
+                // LightWorldPos = CameraWorldPos.
+                // LightLocalPos = InverseTransGroupMatrix * CameraWorldPos.
+                
+                // Simplified: Just put light in Scene (not TransGroup) and copy position?
+                // But user wants it to illuminate TransGroup objects.
+                // Three.js PointLight works in World Space anyway?
+                // If Light is child of TransGroup, it moves with World.
+                // If we want it to stay at Camera (Head), we should un-transform it.
+                
+                // EASIER: Attach light to Camera?
+                // But we are manually updating position.
+                
+                // Let's just approximate:
+                // Since TransGroup moves via -manualPos, 
+                // Camera stays at (0,0,5) + HeadTracking.
+                // We want Light at Camera.
+                
+                // The Light is inside TransGroup.
+                // TransGroup.position = -manualPos.
+                // So Light.position must be manualPos + CameraPos to cancel out?
+                // Example: Player moves Forward (Z=-10). TransGroup Z = +10.
+                // Camera Z = 5.
+                // LightWorld = 5.
+                // LightLocal = LightWorld - TransGroupPos = 5 - 10 = -5.
+                
+                this.customPointLight.position.copy(this.manualPos).add(this.camera.position);
+            } else {
+                this.customPointLight.position.set(
+                    this.settings.lightX, 
+                    this.settings.lightY, 
+                    this.settings.lightZ
+                );
+            }
+        }
+        // -------------------------------------------
         
         // 3. Raycasting & Crosshair
         if (this.settings.showCrosshair) {
@@ -436,6 +495,47 @@ export const GraphicsApp = {
         }
 
         this.renderer.render(this.scene, this.camera);
+    },
+
+    applyShaderToModel: function(model) {
+         model.traverse((child) => {
+            if (child.isMesh) {
+                const newUniforms = THREE.UniformsUtils.clone(BlinnPhongShader.uniforms);
+                
+                // 1. Preserve Texture
+                if (child.material.map) {
+                    newUniforms.uTexture.value = child.material.map;
+                    newUniforms.uHasTexture.value = true;
+                } 
+                // 2. Preserve Color
+                else if (child.material.color) {
+                    newUniforms.uColor.value = child.material.color;
+                    newUniforms.uHasTexture.value = false;
+                }
+
+                // 3. Extract Roughness
+                if (child.material.roughness !== undefined) {
+                    newUniforms.uRoughness.value = child.material.roughness;
+                } else {
+                    newUniforms.uRoughness.value = 0.5;
+                }
+
+                // 4. Extract Emissive (Glow)
+                if (child.material.emissiveMap) {
+                    newUniforms.uEmissiveMap.value = child.material.emissiveMap;
+                    newUniforms.uHasEmissiveMap.value = true;
+                } else if (child.material.emissive) {
+                    newUniforms.uEmissive.value = child.material.emissive;
+                    newUniforms.uHasEmissiveMap.value = false;
+                }
+
+                child.material = new THREE.ShaderMaterial({
+                    uniforms: newUniforms,
+                    vertexShader: BlinnPhongShader.vertexShader,
+                    fragmentShader: BlinnPhongShader.fragmentShader
+                });
+            }
+        });
     },
 
     updateCrosshair: function() {
