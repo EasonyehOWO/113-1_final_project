@@ -34,12 +34,20 @@ body {
     position: absolute;
     bottom: 20px;
     right: 20px;
-    width: 160px;
-    height: 120px;
     border: 2px solid #00ff00;
     border-radius: 8px;
     transform: scaleX(-1); /* 鏡像翻轉 */
     z-index: 10;
+
+    width: auto;
+    height: 120px;
+
+    background-color: hsl(0, 0%, 20%);
+
+    &:hover {
+        width: calc(100vw - 40px);
+        height: calc(100vh - 40px);
+    }
 }
 
 /* -----------------------------
