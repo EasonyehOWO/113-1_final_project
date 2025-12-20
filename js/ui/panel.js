@@ -26,21 +26,24 @@ export class Panel {
             showCrosshair: true,
             rendererScale: 1.0,
             rendererScale: 1.0,
-            // webcamRes removed (auto-managed by inputSize)
             stabilization: true,
             panelOpacity: 0.6,
             showWebcam: true,
             offsetX: 0,
-            offsetY: 0,
+            offsetY: 4, // webcam is typically at the top of the screen
             lightEnabled: true,
             lightX: 5,
             lightY: 5,
             lightZ: 5,
 
             lightFollowCamera: true,
-            lightFollowCamera: true,
-            physicsMode: false, // True = Window/Physics Mode, False = Zoom Mode
+            physicsMode: true, // True = Window/Physics Mode, False = Zoom Mode
             visualConvergenceMode: false, // True = LookAt Center (Hologram), False = Window Off-axis
+            
+            // Fog & Distance
+            fogNear: 5.0,
+            fogFar: 20.0,
+            cameraFar: 1000.0,
             
             // Advanced Performance
             // Advanced Performance
@@ -272,7 +275,31 @@ export class Panel {
                         <div>
                             <label>Y 軸靈敏度: <span id="val-sensY"></span></label>
                             <input type="range" id="inp-sensY" min="-100" max="100" step="0.2">
+                            <!-- 
+                        <div style="margin-top:5px;">
+                            <label>螢幕寬度 (cm): <span id="val-screenWidth"></span></label>
+                            <input type="number" id="inp-screenWidth" value="30" step="0.5" style="width:60px;">
+                        </div> 
+                        -->
+                    </div>
+
+                    <hr />
+                    
+                    <div class="control-group">
+                        <label style="color: #00bcd4;">距離與霧氣 (Distance & Fog)</label>
+                        <div title="超過此距離的物體將不會被渲染">
+                            <label>最遠顯示距離 (Camera Far): <span id="val-cameraFar"></span></label>
+                            <input type="range" id="inp-cameraFar" min="10" max="2000" step="10">
                         </div>
+                        <div>
+                            <label>霧氣起始 (Fog Near): <span id="val-fogNear"></span></label>
+                            <input type="range" id="inp-fogNear" min="0" max="100" step="1">
+                        </div>
+                        <div>
+                            <label>霧氣結束 (Fog Far): <span id="val-fogFar"></span></label>
+                            <input type="range" id="inp-fogFar" min="0" max="100" step="1">
+                        </div>
+                    </div>
                         <div title="= 臉框實寬(cm) / 10 / 2 / tan(橫向視野角 / 2)">
                             <label>Z 軸靈敏度（焦距和臉寬參數）: <span id="val-sensZ"></span></label>
                             <input type="range" id="inp-sensZ" min="0.1" max="5.0" step="0.1">
@@ -432,6 +459,19 @@ export class Panel {
         bindRange('inp-lightX', 'lightX');
         bindRange('inp-lightY', 'lightY');
         bindRange('inp-lightZ', 'lightZ');
+        bindRange('inp-lightZ', 'lightZ');
+        
+        // Fog & Distance Bindings
+        bindRange('inp-cameraFar', 'cameraFar');
+        bindRange('inp-fogNear', 'fogNear');
+        bindRange('inp-fogFar', 'fogFar');
+        
+        bindRange('inp-lightZ', 'lightZ');
+        
+        // Fog & Distance Bindings
+        bindRange('inp-cameraFar', 'cameraFar');
+        bindRange('inp-fogNear', 'fogNear');
+        bindRange('inp-fogFar', 'fogFar');
         
         const lightEnabledCheck = this.element.querySelector('#inp-lightEnabled');
         bindCheckbox('inp-lightEnabled', 'lightEnabled'); // Bind new toggle
