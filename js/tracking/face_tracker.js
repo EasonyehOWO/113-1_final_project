@@ -194,7 +194,8 @@ export const FaceTracker = {
                     this.onUpdateCallback({
                         x: normX,
                         y: normY,
-                        faceWidthRatio: faceWidthRatio
+                        faceWidthRatio: faceWidthRatio,
+                        face: detection.box // Pass raw detection box for advanced logic
                     });
                 }
             }

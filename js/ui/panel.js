@@ -47,6 +47,9 @@ export class Panel {
             fogFar: 20.0,
             cameraFar: 1000.0,
             
+            // Calibration
+            calibrationPPI: 96,
+            
             // Advanced Performance
             // Advanced Performance
             inputSize: 320 // AI Input Resolution (160-1920)
@@ -265,6 +268,17 @@ export class Panel {
                             <input type="color" id="inp-lightColor" style="width: 100%; height: 30px;">
                         </div>
                     </div>
+                    
+                    <hr />
+
+                    <div class="control-group">
+                        <label style="color: #4caf50;">螢幕校準 (Screen Calibration)</label>
+                        <div title="請拿實體尺量測螢幕上的紅線刻度 (每格 5cm)">
+                            <label>像素密度 (PPI): <span id="val-calibrationPPI"></span></label>
+                            <input type="range" id="inp-calibrationPPI" min="50" max="400" step="1">
+                            <small style="color:#aaa; display:block; margin-top:2px;">按住滑桿顯示校準尺 (Hold to Calibrate)</small>
+                        </div>
+                    </div>
 
                     <hr />
                     
@@ -304,12 +318,16 @@ export class Panel {
                     <div class="control-group">
                         <label style="color: #00bcd4;">距離與霧氣 (Distance & Fog)</label>
                         <div title="超過此距離的物體將不會被渲染">
-                            <label>最遠顯示距離 (Camera Far): <span id="val-cameraFar"></span></label>
-                            <input type="range" id="inp-cameraFar" min="10" max="2000" step="10">
+                            <label>視距 (Far): <span id="val-cameraFar"></span></label>
+                            <input type="range" id="inp-cameraFar" min="10" max="200" step="5" />
+                        </div>
+                        <div>
+                            <label>近截面 (Near): <span id="val-cameraNear"></span></label>
+                            <input type="range" id="inp-cameraNear" min="0.1" max="50.0" step="0.1" />
                         </div>
                         <div>
                             <label>霧氣起始 (Fog Near): <span id="val-fogNear"></span></label>
-                            <input type="range" id="inp-fogNear" min="0" max="100" step="1">
+                            <input type="range" id="inp-fogNear" min="0" max="100" step="1" />
                         </div>
                         <div>
                             <label>霧氣結束 (Fog Far): <span id="val-fogFar"></span></label>
@@ -483,15 +501,116 @@ export class Panel {
         
         // Fog & Distance Bindings
         bindRange('inp-cameraFar', 'cameraFar');
+        bindRange('inp-cameraNear', 'cameraNear');
         bindRange('inp-fogNear', 'fogNear');
         bindRange('inp-fogFar', 'fogFar');
         
-        bindRange('inp-lightZ', 'lightZ');
+        // Calibration Binding
+        bindRange('inp-calibrationPPI', 'calibrationPPI');
         
-        // Fog & Distance Bindings
-        bindRange('inp-cameraFar', 'cameraFar');
-        bindRange('inp-fogNear', 'fogNear');
-        bindRange('inp-fogFar', 'fogFar');
+        // --- Calibration Overlay Logic ---
+        const ppiInput = this.element.querySelector('#inp-calibrationPPI');
+        
+        // Create Overlay if not exists
+        let overlay = document.getElementById('calibration-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'calibration-overlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.9); z-index: 99999;
+                pointer-events: none; display: none;
+                align-items: center; justify-content: center;
+            `;
+            // SVG Container for Ruler
+            overlay.innerHTML = `<svg width="100%" height="100%" style="position:absolute; top:0; left:0;"></svg>`;
+            document.body.appendChild(overlay);
+        }
+        
+        const drawRuler = () => {
+            const ppi = this.settings.calibrationPPI || 96;
+            const ppcm = ppi / 2.54;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            
+            const svg = overlay.querySelector('svg');
+            
+            // Diagonal Line
+            let html = `<line x1="0" y1="0" x2="${w}" y2="${h}" stroke="red" stroke-width="2" />`;
+            
+            // Ticks every 5cm
+            const diagMaxCM = Math.sqrt(w*w + h*h) / ppcm;
+            
+            for (let i = 5; i < diagMaxCM; i += 5) {
+                const px = i * ppcm;
+                // Projected point on diagonal (similar triangles)
+                // dist d = px
+                // Total Dist D = sqrt(w^2 + h^2)
+                // ratio t = d / D
+                const D = Math.sqrt(w*w + h*h);
+                const t = px / D;
+                
+                const cx = t * w;
+                const cy = t * h;
+                
+                // Draw perpendicular tick
+                // Vector along diag: (w, h)
+                // Perpendicular vector: (-h, w) normalized -> (-h/D, w/D)
+                // Tick length = 20px
+                const tickLen = 20;
+                const nx = -h/D;
+                const ny = w/D;
+                
+                html += `<line x1="${cx - nx*tickLen}" y1="${cy - ny*tickLen}" 
+                               x2="${cx + nx*tickLen}" y2="${cy + ny*tickLen}" 
+                               stroke="yellow" stroke-width="2" />`;
+                html += `<text x="${cx + nx*(tickLen+15)}" y="${cy + ny*(tickLen+5)}" fill="white" font-size="20" font-family="monospace">${i}cm</text>`;
+            }
+            
+            svg.innerHTML = html;
+        };
+        
+        const showOverlay = () => {
+             overlay.style.display = 'flex';
+             drawRuler();
+        };
+        
+        const hideOverlay = () => {
+             overlay.style.display = 'none';
+        };
+        
+        // Show on mousedown/touchstart
+        ppiInput.addEventListener('mousedown', showOverlay);
+        ppiInput.addEventListener('touchstart', showOverlay);
+        
+        // Update drawing while sliding
+        ppiInput.addEventListener('input', drawRuler);
+        
+        // Hide on mouseup/leave
+        window.addEventListener('mouseup', hideOverlay);
+        window.addEventListener('touchend', hideOverlay);
+        
+        // Add Spacebar Listener (Hold to Show) - Scoped to Input
+        // UX: User focuses slider -> Holds Space -> Tuned with Arrows
+        ppiInput.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevent default scroll/action
+                if (overlay.style.display !== 'flex') {
+                    showOverlay();
+                }
+            }
+        });
+        
+        ppiInput.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                hideOverlay();
+            }
+        });
+        
+        // Also hide if focus is lost
+        ppiInput.addEventListener('blur', hideOverlay);
+        
+        // --- End Calibration Logic ---
         
         const lightEnabledCheck = this.element.querySelector('#inp-lightEnabled');
         bindCheckbox('inp-lightEnabled', 'lightEnabled'); // Bind new toggle
