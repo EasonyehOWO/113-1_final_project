@@ -25,7 +25,8 @@ export class Panel {
             lerpFactor: 0.75,
             showCrosshair: true,
             rendererScale: 1.0,
-            webcamRes: 'low', // 'low' (320x240) or 'high' (640x480)
+            rendererScale: 1.0,
+            // webcamRes removed (auto-managed by inputSize)
             stabilization: true,
             panelOpacity: 0.6,
             showWebcam: true,
@@ -293,15 +294,6 @@ export class Panel {
                             <label>渲染解析度 (Render Scale): <span id="val-rendererScale"></span>x</label>
                             <input type="range" id="inp-renderScale" min="0.1" max="2.0" step="0.01">
                         </div>
-                        <div>
-                            <label>攝像頭解析度 (需重整)</label>
-                            <select id="inp-webcamRes" title="請讓長邊解析度低於 AI 輸入解析度，否則浪費運算資源。">
-                                <option value="low">Low (320x240)</option>
-                                <option value="high">High (640x480)</option>
-                                <option value="hd">HD (1280x720)</option>
-                                <option value="fhd">FHD (1920x1080)</option>
-                            </select>
-                        </div>
                         <div style="margin-top: 5px;" title="運算量為此值平方，請不要設太高。建議 256~480。">
                             <label>AI 輸入解析度: <span id="val-inputSize"></span></label>
                             <input type="range" id="inp-inputSize" min="160" max="1920" step="32" />
@@ -358,6 +350,12 @@ export class Panel {
                 let val = parseFloat(e.target.value);
                 if (isNaN(val)) val = 0; // Safety check
                 
+                // For inputSize, only update label visual, do not commit yet
+                if (key === 'inputSize') {
+                     if(disp) disp.innerText = val;
+                     return;
+                }
+
                 this.settings[key] = val;
                 if(disp) disp.innerText = val;
                 
@@ -372,6 +370,18 @@ export class Panel {
                 
                 this.broadcastSettings();
             });
+
+            // Handle 'change' for delayed updates (InputSize)
+            if (key === 'inputSize') {
+                el.addEventListener('change', (e) => {
+                    let val = parseFloat(e.target.value);
+                    if (isNaN(val)) val = 0;
+                    
+                    this.settings[key] = val;
+                    if(disp) disp.innerText = val;
+                    this.broadcastSettings(); 
+                });
+            }
         };
 
         const bindCheckbox = (id, key) => {
@@ -484,7 +494,10 @@ export class Panel {
         stabCheck.checked = this.settings.stabilization;
         updateLerpUI();
 
-        bindSelect('inp-webcamRes', 'webcamRes');
+        updateLerpUI();
+
+        // bindSelect('inp-webcamRes', 'webcamRes'); // Removed
+        bindCheckbox('inp-showWebcam', 'showWebcam');
         bindCheckbox('inp-showWebcam', 'showWebcam');
         bindCheckbox('inp-physicsMode', 'physicsMode'); // Physics Mode
         bindCheckbox('inp-crosshair', 'showCrosshair');
