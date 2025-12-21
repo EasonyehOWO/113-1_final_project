@@ -227,7 +227,7 @@ export const GraphicsApp = {
         this.lastZ += (targetZ - this.lastZ) * this.lerpFactor;
 
         // 限制 Z 軸範圍避免破圖
-        const clampedZ = Math.max(1.0, Math.min(this.lastZ, 15.0));
+        const clampedZ = Math.max(1.0, Math.min(this.lastZ, 100));
 
         this.targetCamPos.set(this.lastX, this.lastY, clampedZ);
         
