@@ -5,11 +5,10 @@ Use webcam to track user's head position and orientation, and render 3D models i
 [中文版 (Chinese Version)](./README_zh_TW.md)
 
 ## Demo
-1. Import the SQL file in the `proposal/database` folder into your MySQL database (`sudo mysql < proposal/database/database.sql`).
+1. Execute `npx serve .` or `python3 -m http.server` on the root directory
+2. Open the localhost link (or that with `0.0.0.0` address) (typically on port `:3000` or `:8000`)
+3. Tada! Load your file thru drag-n-drop.
 
-2. Run the server with `php -S localhost:8000 -d upload_max_filesize=25M -d post_max_size=25M`. (25M is the max post size; 20M max file size is hardcoded in the PHP file "upload_action.php")
-
-3. Visit `http://localhost:8000` in your browser.
 
 ## Features
 ### Move around in the world

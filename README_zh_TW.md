@@ -6,12 +6,9 @@
 
 ## 怎麽架設（開發用）
 
-1. 將 `proposal/database` 資料夾中的 SQL 檔案匯入到您的 MySQL 資料庫 (`sudo mysql < proposal/database/database.sql`)。
-
-2. 啟動 PHP 伺服器：`php -S localhost:8000 -d upload_max_filesize=25M -d post_max_size=25M`。 
-   (注意：25M 是最大 Post 大小，而單檔上傳上限 20M 目前是寫死在 `upload_action.php` 中)
-
-3. 在瀏覽器中開啟 `http://localhost:8000`
+1. 在專案根目錄執行 `npx serve .` 或 `python3 -m http.server`
+2. 執行成功會顯示一個連結，開啟它（通常是 `localhost` 或 `127.0.0.1` 或 `0.0.0.0` 地址）（一般會在連接埠 `:3000` 或 `:8000` 上）
+3. 大功告成！透過拖曳方式，載入你的檔案吧！
 
 ## 功能介紹
 
